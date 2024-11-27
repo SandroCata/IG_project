@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shadow Mapping</title>
+    <link rel="stylesheet" href="./style/style.css"/>
+</head>
+<body>
+    <canvas width="1920" height="1080"></canvas>
+	<div id="controls">
+		<button id="StartDemo">Start Demo</button>
+		<button id="applyCamera">Apply Camera Settings</button>
+		<label>Camera X: <span id="valueX"></span> <input type="range" id="cameraX" min="-1" max="1" step="0.1" value="0.6"></label>
+		<label>Camera Y: <span id="valueY"></span> <input type="range" id="cameraY" min="0.2" max="1" step="0.1" value="0.6"></label>
+		<label>Camera Z: <span id="valueZ"></span> <input type="range" id="cameraZ" min="-2" max="2" step="0.1" value="0.6"></label>
+	</div>
+	<script type="text/javascript" src="./logic/utils.js"></script>
+    <script type="text/javascript" src="./logic/shadowMap.js"></script>
+</body>
+</html>
