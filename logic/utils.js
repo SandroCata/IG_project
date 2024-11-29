@@ -23,6 +23,7 @@ function createProgram(gl, vertexShaderText, fragmentShaderText) {
     return program;
 }
 
+
 //Orthografic Matrix to pass from 3D to 4D
 function createOrtho(bottom, top, left, right, near, far) {
     return new DOMMatrix([
