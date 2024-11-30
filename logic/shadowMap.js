@@ -458,6 +458,7 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 
 	uniform mat4 modelViewProjection;
 	uniform mat4 lightPovMvp;
+	uniform mat4 normalMatrix;
 
 	out vec3 vNormal;
 	out vec4 positionFromLightPov;
@@ -465,7 +466,8 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 
 	void main()
 	{
-		vNormal = aNormal;
+		//vNormal = aNormal;
+		vNormal = normalize((normalMatrix * vec4(aNormal, 0.0)).xyz);
 		gl_Position = modelViewProjection * aPosition;
 		positionFromLightPov = lightPovMvp * aPosition;
 	}`;
@@ -485,9 +487,10 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 	float ambientLight = 0.2;
 
 	//improvement parametrs
-	float bias = 0.002;
+	float bias = 0.005;
 	float visibility = 1.0;
-	float shadowSpread = 800.0;
+	float shadowSpread = 1100.0;
+	uniform float lightIntensity;
 
 	//sampling the four adjacent pixels
 	vec2 adjacentPixels[5] = vec2[](
@@ -507,10 +510,10 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 			float hitByLight = texture(shadowMap, sampledPos);
     		visibility *= max(hitByLight, 0.9);
 		}
-		vec3 normalizedNormal = normalize(vNormal);
+		//vec3 normalizedNormal = normalize(vNormal);
 		vec3 normalizedLightDir = normalize(uLightDirection);
-		float lightCos = dot(normalizedLightDir, normalizedNormal);
-		float brightness = max(lightCos * visibility, ambientLight);
+		float lightCos = max(dot(normalizedLightDir, vNormal), ambientLight);
+		float brightness = lightCos * visibility * lightIntensity + ambientLight;
 		fragColor = color * brightness;
 	}`;
 
@@ -569,13 +572,23 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 	let projectionLoc = gl.getUniformLocation(program, 'modelViewProjection');
 	gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
+	let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
+
+	const normalMatrixLoc = gl.getUniformLocation(program, 'normalMatrix');
+	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
+
 
 	// Create cubes and bind their data
 	const verticesPerCube = 6 * 6;
 	const cubes = new Float32Array([
+		...createCubeWithNormals(1, 0.1, 1, 0, 0, 0),
+		...createCubeWithNormals(0.3, 0.5, 0.1, 0, 0, 0)
+	]);
+	/*
+	const cubes = new Float32Array([
 	...createMultiColorCube(1, 0.1, 1, 0, 0, 0),
 	...createMultiColorCube(0.3, 0.5, 0.1, 0, 0, 0)
-	]);
+	]);*/
 
 	//Creating vertex buffer
 	const vertexBuffer = gl.createBuffer();
@@ -605,6 +618,10 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 
 	// Get access to the shadow map uniform so we can set it during draw
 	let shadowMapLocation = gl.getUniformLocation(program, 'shadowMap');
+
+	let lightIntensity = 1.0;  // Intensità iniziale della luce
+	const lightIntensityLoc = gl.getUniformLocation(program, 'lightIntensity');
+	gl.uniform1f(lightIntensityLoc, lightIntensity);
 
 	//Rendering
 	function draw() {
@@ -638,6 +655,8 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 	document.getElementById('lightvY').innerText = inverseLightDirection.y.toFixed(2);
 	document.getElementById('lightvZ').innerText = inverseLightDirection.z.toFixed(2);
 
+	document.getElementById('lightInt').innerText = lightIntensity.toFixed(2);
+
 	// Disable the "Start Demo" button after it is clicked
     document.getElementById('StartDemo').disabled = true;
 
@@ -646,7 +665,7 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 	//change camera position values
 	document.getElementById('cameraX').addEventListener('input', (e) => {
 		cameraPosition.x = parseFloat(e.target.value);
-		document.getElementById('cameraX').innerText = cameraPosition.x.toFixed(2);
+		document.getElementById('valueX').innerText = cameraPosition.x.toFixed(2);
 		
 	});
 	
@@ -679,10 +698,21 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 		document.getElementById('lightvZ').innerText = inverseLightDirection.z.toFixed(2);
 	});
 
+	//change light intensity 
+	document.getElementById('lightIntV').addEventListener('input', (e) => {
+		lightIntensity = parseFloat(e.target.value);
+		document.getElementById('lightInt').innerText = lightIntensity.toFixed(2);
+	});
+
 	//apply changes
 	document.getElementById('applyCamera').addEventListener('click', () => {
 		view = createLookAt(cameraPosition, origin);
 		modelViewProjection = projection.multiply(view);
+
+		normalMatrix = calculateNormalMatrix(view.toFloat32Array());
+
+		
+		gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 	
 		gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 	
@@ -718,8 +748,18 @@ document.getElementById('StartDemo').addEventListener('click', () => {
 		//draw updated scene
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+		//gl.uniform1f(lightIntensityLoc, lightIntensity);  // Aggiorna l'uniform nello shader
 	 
 		draw();
 		console.log('Light settings applied:', inverseLightDirection);
+	});
+
+	document.getElementById('applyLightIntensity').addEventListener('click', (e) => {
+
+		gl.useProgram(program);
+		gl.uniform1f(lightIntensityLoc, lightIntensity);  // Aggiorna l'uniform nello shader
+
+		draw();  // Ricalcola la scena
+		console.log('Light intensity updated:', lightIntensity);
 	});
 });
