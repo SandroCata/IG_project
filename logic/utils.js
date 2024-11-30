@@ -231,3 +231,8 @@ function calculateNormalMatrix(modelViewMatrix) {
       -width + x,-height + y, depth + z,   0,0,1,
     ]);
 }
+
+function getRandomFloat(min, max) {
+  return Math.random() * (max - min) + min;
+}
+

@@ -11,3 +11,5 @@ Shadows depend on the resolution of the shadow map and may appear "pixelated" or
 Less expensive than ray tracing, but more complex than basic rasterization.
 
 "Shadows are created by testing whether a pixel is visible from the light source, by comparing the pixel to a z-buffer or depth image of the light source’s view, stored in the form of a texture."
+
+^[\t] espressione regolare per allineare tutto

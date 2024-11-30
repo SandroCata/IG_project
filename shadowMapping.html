@@ -8,7 +8,7 @@
 <body>
     <canvas width="1920" height="1080"></canvas>
 	<div id="controls">
-		<button id="StartDemo">Start Demo</button>
+		<button id="RandCube">Randomize Cube Dimensions</button>
 		<button id="applyCamera">Change Camera Settings</button>
 		<label>Camera X: <span id="valueX"></span> <input type="range" id="cameraX" min="-1" max="1" step="0.1"></label>
 		<label>Camera Y: <span id="valueY"></span> <input type="range" id="cameraY" min="0.4" max="2" step="0.1"></label>
@@ -18,8 +18,9 @@
 		<label>Light Y: <span id="lightvY"></span> <input type="range" id="lightY" min="0.4" max="2" step="0.1"></label>
 		<label>Light Z: <span id="lightvZ"></span> <input type="range" id="lightZ" min="-2" max="2" step="0.1"></label>
 		<button id="applyLightIntensity">Change Light Intensity</button>
-		<label>Light Intensity: <span id="lightInt"></span> <input type="range" id="lightIntV" min="0.6" max="2" step="0.1"></label>
+		<label>Light Intensity: <span id="lightInt"></span> <input type="range" id="lightIntV" min="0.2" max="1.3" step="0.1"></label>
 	</div>
+	<script type="text/javascript" src="./logic/UIhandlers.js"></script>
 	<script type="text/javascript" src="./logic/utils.js"></script>
     <script type="text/javascript" src="./logic/shadowMap.js"></script>
 </body>
