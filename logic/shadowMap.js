@@ -2,7 +2,7 @@
 
 //MAIN
 
-//Create new vertex and fragment shaders for the light point of view (matrix will be for it)
+//vertex and fragment shaders for the light point of view
 
 //Light POV
 
@@ -95,14 +95,16 @@ void main()
 	for (int i = 0; i < 5; i++) {
 		vec3 sampledPos = vec3(positionFromLightPov.xy + adjacentPixels[i]/shadowSpread, positionFromLightPov.z - bias);
 		float hitByLight = texture(shadowMap, sampledPos);
-    		visibility *= max(hitByLight, 0.9);
+    	visibility *= max(hitByLight, 0.9);
 	}
-	//vec3 normalizedNormal = normalize(vNormal);
+	vec3 normalizedNormal = normalize(vNormal);
 	vec3 normalizedLightDir = normalize(uLightDirection);
-	float lightCos = max(dot(normalizedLightDir, vNormal), ambientLight);
+
+	float lightCos = max(dot(normalizedLightDir, normalizedNormal), ambientLight);
 	float brightness = lightCos * visibility * lightIntensity + ambientLight;
 	fragColor = color * brightness;
 }`;
+//compare with Blinn-Phon Model and see if you can enhance
 
 //Context creation for WebGL
 const gl = document.querySelector('canvas').getContext('webgl2');
@@ -122,10 +124,10 @@ const origin = new DOMPoint(0, 0, 0);
 
 // Set Light MVP Matrix (light direction can vary)
 gl.useProgram(program);
-let inverseLightDirection = new DOMPoint(-0.5, 2, -2);
+let inverseLightDirection = new DOMPoint(-0.5, 2, -2); 				//initially here
 let lightDirectionLoc = gl.getUniformLocation(program,'uLightDirection');
 gl.uniform3fv(lightDirectionLoc, new Float32Array([inverseLightDirection.x, inverseLightDirection.y, inverseLightDirection.z]));
-    let lightPovProjection = createOrtho(-1,1,-1,1,0,4);
+let lightPovProjection = createOrtho(-1,1,-1,1,0,4);
 let lightPovView = createLookAt(inverseLightDirection, origin);
 let lightPovMvp = lightPovProjection.multiply(lightPovView);
 
@@ -150,7 +152,7 @@ gl.uniformMatrix4fv(lightPovMvpRenderLocation, false, textureSpaceMvp.toFloat32A
 
 
 // Set Camera MVP Matrix (camera Position can vary)
-let cameraPosition = new DOMPoint(1, 1, 2);   //initially here
+let cameraPosition = new DOMPoint(1, 1, 2);   				//initially here
 let view = createLookAt(cameraPosition, origin);
 let projection = createPerspective(Math.PI / 3, 16 / 9, 0.1, 10);
 let modelViewProjection = projection.multiply(view);
@@ -167,17 +169,21 @@ gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
 // Create cubes and bind their data
 let width_cube=getRandomFloat(0.1, 0.7);
-let height_cube=getRandomFloat(0.25, 1);
+let height_cube=getRandomFloat(0.25, 0.75);
 let depth_cube=getRandomFloat(0.1, 0.4);
 console.log("width_cube "+ width_cube);
 console.log("height_cube "+ height_cube);
 console.log("depth_cube "+ depth_cube);
 
+//avoids cube to be rendered inside and below the base cube
+let baseCubeHeight = 0.1; 
+let upperCubeYPosition = baseCubeHeight / 2 + height_cube / 2;
+
 
 const verticesPerCube = 6 * 6;
 let cubes = new Float32Array([
-	...createCubeWithNormals(1, 0.1, 1, 0, 0, 0),
-	...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, 0, 0)
+	...createCubeWithNormals(1, 0.01, 1, 0, 0, 0),
+	...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, upperCubeYPosition, 0)
 ]);
 
 //Creating vertex buffer
@@ -262,16 +268,16 @@ applyLightDirChanges(gl, inverseLightDirection, lightPovProjection, origin, ligh
 document.getElementById('applyLightIntensity').addEventListener('click', () => {
 
 	gl.useProgram(program);
-	gl.uniform1f(lightIntensityLoc, lightIntensity);  // Aggiorna l'uniform nello shader
+	gl.uniform1f(lightIntensityLoc, lightIntensity);  // update uniform var in shader
 
-	draw();  // Ricalcola la scena
+	draw();  // Redraws the scene
 	console.log('Light intensity updated:', lightIntensity);
 });
 
 document.getElementById('RandCube').addEventListener('click', () => {
-	// Genera nuove dimensioni randomiche per il cubo
+	// new random dimensions for the cube
     width_cube = getRandomFloat(0.1, 0.7);
-    height_cube = getRandomFloat(0.25, 1);
+    height_cube = getRandomFloat(0.25, 0.75);
     depth_cube = getRandomFloat(0.1, 0.4);
 
     console.log("New Cube Dimensions:");
@@ -279,24 +285,27 @@ document.getElementById('RandCube').addEventListener('click', () => {
     console.log("Height: ", height_cube);
     console.log("Depth: ", depth_cube);
 
-    // Crea nuovi vertici per il cubo randomico
+	//avoids cube to be rendered inside and below the base cube 
+	upperCubeYPosition = baseCubeHeight / 2 + height_cube / 2;
+
+    // new vertices for the cube
     cubes = new Float32Array([
-        ...createCubeWithNormals(1, 0.1, 1, 0, 0, 0), // Piano di base
-        ...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, 0, 0) // Cubo randomico
+        ...createCubeWithNormals(1, 0.01, 1, 0, 0, 0), // base plan
+        ...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, upperCubeYPosition, 0) // new cube
     ]);
 
-    // Aggiorna il buffer con i nuovi vertici
+    // Updating the bufer with the new cube
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, cubes, gl.STATIC_DRAW);
 
-	// Aggiorna la shadow map
+	// Update the shadow map
     gl.useProgram(depthProgram);
     gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
     gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube * 2);
 
-    // Ridisegna la scena con le nuove dimensioni del cubo
+    //Redraw the scene
     draw();
     
 });
