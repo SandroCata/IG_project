@@ -120,8 +120,8 @@ gl.enable(gl.DEPTH_TEST);
 //bias improvement
 //gl.enable(gl.CULL_FACE);
 
-//Setting origin point
-const origin = new DOMPoint(0, 0, 0);
+//Setting initial origin point
+let origin = new DOMPoint(0, 0, 0);
 
 // Set Light MVP Matrix (light direction can vary)
 gl.useProgram(program);
@@ -170,7 +170,7 @@ gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
 // Create cubes and bind their data
 let width_cube=getRandomFloat(0.1, 0.7);
-let height_cube=getRandomFloat(0.25, 0.75);
+let height_cube=getRandomFloat(0.25, 0.55);
 let depth_cube=getRandomFloat(0.1, 0.4);
 console.log("-----------------------NEW CUBE-------------------------------");
 console.log("Current width_cube: "+ width_cube.toFixed(2));
@@ -178,13 +178,13 @@ console.log("Current height_cube: "+ height_cube.toFixed(2));
 console.log("Current depth_cube: "+ depth_cube.toFixed(2));
 
 //avoids cube to be rendered inside and below the base cube
-let baseCubeHeight = 0.1; 
-let upperCubeYPosition = baseCubeHeight / 2 + height_cube / 2;
+let baseCubeHeight = 0.01; 
+let upperCubeYPosition = baseCubeHeight + height_cube;;
 
 
 const verticesPerCube = 6 * 6;
 let cubes = new Float32Array([
-	...createCubeWithNormals(1, 0.01, 1, 0, 0, 0),
+	...createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0),
 	...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, upperCubeYPosition, 0)
 ]);
 
@@ -326,9 +326,10 @@ document.getElementById('applyLightIntensity').addEventListener('click', () => {
 });
 
 document.getElementById('RandCube').addEventListener('click', () => {
+
 	// new random dimensions for the cube
     width_cube = getRandomFloat(0.1, 0.7);
-    height_cube = getRandomFloat(0.25, 0.75);
+    height_cube = getRandomFloat(0.25, 0.55);
     depth_cube = getRandomFloat(0.1, 0.4);
 
     console.log("-----------------------NEW CUBE-------------------------------");
@@ -338,15 +339,22 @@ document.getElementById('RandCube').addEventListener('click', () => {
 
 
 	//avoids cube to be rendered inside and below the base cube 
-	upperCubeYPosition = baseCubeHeight / 2 + height_cube / 2;
+	upperCubeYPosition = baseCubeHeight + height_cube;
+
+	let maxOffsetX = (1 - width_cube) / 2; // Limita il movimento lungo l'asse X
+	let maxOffsetZ = (1 - depth_cube) / 2; // Limita il movimento lungo l'asse Z
+
+	let cubePositionX = getRandomFloat(-maxOffsetX, maxOffsetX);
+	let cubePositionZ = getRandomFloat(-maxOffsetZ, maxOffsetZ);
+
 
     // new vertices for the cube
     cubes = new Float32Array([
-        ...createCubeWithNormals(1, 0.01, 1, 0, 0, 0), // base plan
-        ...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, upperCubeYPosition, 0) // new cube
+        ...createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0), // base plan
+        ...createCubeWithNormals(width_cube, height_cube, depth_cube, cubePositionX, upperCubeYPosition, cubePositionZ) // new cube
     ]);
 
-    // Updating the bufer with the new cube
+    // Updating the buffer with the new cube
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, cubes, gl.STATIC_DRAW);
 
