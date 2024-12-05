@@ -25,3 +25,9 @@ button {
     font-size: 16px;
     cursor: pointer;
 }
+
+canvas {
+    
+    width: 100vw;   /* Larghezza al 100% della viewport */
+    height: 100vh;  /* Altezza al 100% della viewport */
+}

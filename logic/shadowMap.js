@@ -71,7 +71,7 @@ uniform mediump sampler2DShadow shadowMap;
 
 out vec3 fragColor;
 
-float ambientLight = 0.2;
+float ambientLight = 0.25;
 
 //improvement parametrs
 float bias = 0.005;
@@ -107,7 +107,8 @@ void main()
 //compare with Blinn-Phon Model and see if you can enhance
 
 //Context creation for WebGL
-const gl = document.querySelector('canvas').getContext('webgl2');
+const canvas = document.querySelector('canvas');
+const gl = canvas.getContext('webgl2');
 
 //Compiling and executing the shader program
 const program = createProgram(gl, vertexShaderSrc, fragmentShaderSrc);
@@ -154,7 +155,7 @@ gl.uniformMatrix4fv(lightPovMvpRenderLocation, false, textureSpaceMvp.toFloat32A
 // Set Camera MVP Matrix (camera Position can vary)
 let cameraPosition = new DOMPoint(1, 1, 2);   				//initially here
 let view = createLookAt(cameraPosition, origin);
-let projection = createPerspective(Math.PI / 3, 16 / 9, 0.1, 10);
+let projection = createPerspective(Math.PI / 3, canvas.width / canvas.height, 0.1, 50);
 let modelViewProjection = projection.multiply(view);
 
 //Passing MVP to the program shader
@@ -163,7 +164,7 @@ gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
 let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
 
-const normalMatrixLoc = gl.getUniformLocation(program, 'normalMatrix');
+let normalMatrixLoc = gl.getUniformLocation(program, 'normalMatrix');
 gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
 
@@ -171,9 +172,10 @@ gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 let width_cube=getRandomFloat(0.1, 0.7);
 let height_cube=getRandomFloat(0.25, 0.75);
 let depth_cube=getRandomFloat(0.1, 0.4);
-console.log("width_cube "+ width_cube);
-console.log("height_cube "+ height_cube);
-console.log("depth_cube "+ depth_cube);
+console.log("-----------------------NEW CUBE-------------------------------");
+console.log("Current width_cube: "+ width_cube.toFixed(2));
+console.log("Current height_cube: "+ height_cube.toFixed(2));
+console.log("Current depth_cube: "+ depth_cube.toFixed(2));
 
 //avoids cube to be rendered inside and below the base cube
 let baseCubeHeight = 0.1; 
@@ -239,11 +241,53 @@ function draw() {
 	gl.uniform1i(shadowMapLocation, 0);
 	gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube * 2);
 }
+
+// Update dimensions depending on window size
+function resizeCanvasToWindow() {
+    // Get pixel ratio
+    const dpr = window.devicePixelRatio || 1;
+
+    // Set canvas size
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+
+    // Set canvas style
+    canvas.style.width = `${window.innerWidth}px`;
+    canvas.style.height = `${window.innerHeight}px`;
+
+    // Update viewport of WebGL
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+
+	//Recompute some camera and light config
+	gl.useProgram(program);
+	projection = createPerspective(Math.PI / 3, canvas.width / canvas.height, 0.1, 50);
+	modelViewProjection = projection.multiply(view);
+
+	gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
+
+	normalMatrix = calculateNormalMatrix(view.toFloat32Array());
+
+	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
+
+	console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
+	console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
+	
+
+	draw();
+}
+
+// Adapt canvas to the window
+resizeCanvasToWindow();
     
-    draw();
+//Draw the scene
+draw();
 
 //Show settings on UI
 displaySettings(cameraPosition, inverseLightDirection, lightIntensity);
+
+//resize all everytime window is resized or moved to another screen
+window.addEventListener('resize', resizeCanvasToWindow);
 
 //change camera position values
 changeCamera(cameraPosition);
@@ -254,15 +298,14 @@ changeLightDir(inverseLightDirection);
 //change light intensity 
 document.getElementById('lightIntV').addEventListener('input', (e) => {
 	lightIntensity = parseFloat(e.target.value);
-	console.log(lightIntensity);
 	document.getElementById('lightInt').innerText = lightIntensity.toFixed(2);
 });
 
 //apply camera changes
-applyCameraChanges(gl, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw); 
+applyCameraChanges(gl, canvas, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw); 
 
 //apply lightDir changes
-applyLightDirChanges(gl, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw);
+applyLightDirChanges(gl, canvas, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw);
 
 //apply light Int change
 document.getElementById('applyLightIntensity').addEventListener('click', () => {
@@ -270,7 +313,15 @@ document.getElementById('applyLightIntensity').addEventListener('click', () => {
 	gl.useProgram(program);
 	gl.uniform1f(lightIntensityLoc, lightIntensity);  // update uniform var in shader
 
-	draw();  // Redraws the scene
+
+	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+		//Resize and redraw
+		resizeCanvasToWindow();
+	}
+	else {
+		//Redraw the scene
+		draw();
+	}
 	console.log('Light intensity updated:', lightIntensity);
 });
 
@@ -280,10 +331,11 @@ document.getElementById('RandCube').addEventListener('click', () => {
     height_cube = getRandomFloat(0.25, 0.75);
     depth_cube = getRandomFloat(0.1, 0.4);
 
-    console.log("New Cube Dimensions:");
-    console.log("Width: ", width_cube);
-    console.log("Height: ", height_cube);
-    console.log("Depth: ", depth_cube);
+    console.log("-----------------------NEW CUBE-------------------------------");
+	console.log("Current width_cube: "+ width_cube.toFixed(2));
+	console.log("Current height_cube: "+ height_cube.toFixed(2));
+	console.log("Current depth_cube: "+ depth_cube.toFixed(2));
+
 
 	//avoids cube to be rendered inside and below the base cube 
 	upperCubeYPosition = baseCubeHeight / 2 + height_cube / 2;
@@ -305,7 +357,13 @@ document.getElementById('RandCube').addEventListener('click', () => {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube * 2);
 
-    //Redraw the scene
-    draw();
+	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+		//Resize and redraw
+		resizeCanvasToWindow();
+	}
+	else {
+		//Redraw the scene
+		draw();
+	}
     
 });

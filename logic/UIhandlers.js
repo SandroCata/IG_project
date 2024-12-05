@@ -51,7 +51,7 @@ function changeLightDir(lightDir) {
     });
 }
 
-function applyCameraChanges(gl, cameraPos, proj, orig, normalMatrixLoc, projectionLoc, draw) {
+function applyCameraChanges(gl, canvas, cameraPos, proj, orig, normalMatrixLoc, projectionLoc, draw) {
     document.getElementById('applyCamera').addEventListener('click', () => {
         view = createLookAt(cameraPos, orig);
         modelViewProjection = proj.multiply(view);
@@ -62,13 +62,21 @@ function applyCameraChanges(gl, cameraPos, proj, orig, normalMatrixLoc, projecti
         gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
     
         gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
-    
-        draw();
+
+
+        if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+            //Resize and redraw
+            resizeCanvasToWindow();
+        }
+        else {
+            //Redraw the scene
+            draw();
+        }
         console.log('Camera settings applied:', cameraPos);
     });
 }
 
-function applyLightDirChanges(gl, lightDir, lightProj, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw) {
+function applyLightDirChanges(gl, canvas, lightDir, lightProj, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw) {
     document.getElementById('applyLight').addEventListener('click', () => {
 
         //Create new light MVP
@@ -97,8 +105,15 @@ function applyLightDirChanges(gl, lightDir, lightProj, origin, lightDirectionLoc
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         //gl.uniform1f(lightIntensityLoc, lightIntensity);  // Aggiorna l'uniform nello shader
-    
-        draw();
+
+        if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+            //Resize and redraw
+            resizeCanvasToWindow();
+        }
+        else {
+            //Redraw the scene
+            draw();
+        }
         console.log('Light settings applied:', lightDir);
     });
 }
