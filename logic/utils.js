@@ -236,3 +236,30 @@ function getRandomFloat(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+function createSphere(radius, segments, positionX, positionY, positionZ) {
+  const vertices = [];
+  for (let lat = 0; lat <= segments; lat++) {
+      const theta = (lat * Math.PI) / segments;
+      const sinTheta = Math.sin(theta);
+      const cosTheta = Math.cos(theta);
+
+      for (let lon = 0; lon <= segments; lon++) {
+          const phi = (lon * 2 * Math.PI) / segments;
+          const sinPhi = Math.sin(phi);
+          const cosPhi = Math.cos(phi);
+
+          const x = radius * cosPhi * sinTheta + positionX;
+          const y = radius * cosTheta + positionY;
+          const z = radius * sinPhi * sinTheta + positionZ;
+
+          const nx = cosPhi * sinTheta;
+          const ny = cosTheta;
+          const nz = sinPhi * sinTheta;
+
+          vertices.push(x, y, z, nx, ny, nz);
+      }
+  }
+
+  return vertices;
+}
+

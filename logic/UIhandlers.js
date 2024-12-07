@@ -1,5 +1,3 @@
-const verticesPerCube2 = 6 * 6;
-
 function displaySettings(camera, light, lightInt) {
     document.getElementById('valueX').innerText = camera.x.toFixed(2);
 	document.getElementById('valueY').innerText = camera.y.toFixed(2);
@@ -51,7 +49,7 @@ function changeLightDir(lightDir) {
     });
 }
 
-function applyCameraChanges(gl, canvas, cameraPos, proj, orig, normalMatrixLoc, projectionLoc, draw) {
+function applyCameraChanges(gl, canvas, cameraPos, proj, orig, normalMatrixLoc, projectionLoc, draw, currPrimitive) {
     document.getElementById('applyCamera').addEventListener('click', () => {
         view = createLookAt(cameraPos, orig);
         modelViewProjection = proj.multiply(view);
@@ -76,7 +74,7 @@ function applyCameraChanges(gl, canvas, cameraPos, proj, orig, normalMatrixLoc, 
     });
 }
 
-function applyLightDirChanges(gl, canvas, lightDir, lightProj, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw) {
+function applyLightDirChanges(gl, canvas, lightDir, lightProj, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw, currPrimitive, vertices) {
     document.getElementById('applyLight').addEventListener('click', () => {
 
         //Create new light MVP
@@ -98,7 +96,10 @@ function applyLightDirChanges(gl, canvas, lightDir, lightProj, origin, lightDire
         gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
         gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
         gl.clear(gl.DEPTH_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube2 * 2);
+        if(currPrimitive=="parallelepiped")
+            gl.drawArrays(gl.TRIANGLES, 0, vertices * 2);
+        else
+            gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
         
         gl.useProgram(program);
         //draw updated scene

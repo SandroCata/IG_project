@@ -7,7 +7,7 @@
 //Light POV
 
 //vertexShader for shadow map generation
-//aPosition: positions of verteces
+//aPosition: positions of vertices
 //lightPovMvp: ModelViewProj matrix for light POV
 //gl_Position: vertex converted in clipped space of light
 
@@ -104,7 +104,8 @@ void main()
 	float brightness = lightCos * visibility * lightIntensity + ambientLight;
 	fragColor = color * brightness;
 }`;
-//compare with Blinn-Phon Model and see if you can enhance
+
+let currPrimitive = "parallelepiped";
 
 //Context creation for WebGL
 const canvas = document.querySelector('canvas');
@@ -182,11 +183,12 @@ let baseCubeHeight = 0.01;
 let upperCubeYPosition = baseCubeHeight + height_cube;;
 
 
-const verticesPerCube = 6 * 6;
+let vertices = 36;
 let cubes = new Float32Array([
 	...createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0),
 	...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, upperCubeYPosition, 0)
 ]);
+console.log(cubes.length);
 
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
@@ -222,7 +224,7 @@ const lightIntensityLoc = gl.getUniformLocation(program, 'lightIntensity');
 gl.uniform1f(lightIntensityLoc, lightIntensity);
 
 //Rendering
-function draw() {
+function draw(primitive) {
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	// Render shadow map to depth texture
@@ -230,7 +232,13 @@ function draw() {
 	//gl.cullFace(gl.FRONT);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
 	gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
-	gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube * 2);
+	if(primitive == "parallelepiped") {
+		gl.drawArrays(gl.TRIANGLES, 0, vertices * 2); //two cubes so 36 * 2
+	}
+	else {
+		gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
+	}
+	
 
 	// Set depth texture and render scene to canvas
 	gl.useProgram(program);
@@ -239,7 +247,12 @@ function draw() {
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 	gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 	gl.uniform1i(shadowMapLocation, 0);
-	gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube * 2);
+	if(primitive == "parallelepiped") {
+		gl.drawArrays(gl.TRIANGLES, 0, vertices * 2);
+	}
+	else {
+		gl.drawArrays(gl.TRIANGLES, 0, vertices.length /6);
+	}
 }
 
 // Update dimensions depending on window size
@@ -274,14 +287,14 @@ function resizeCanvasToWindow() {
 	console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
 	
 
-	draw();
+	draw(currPrimitive);
 }
 
 // Adapt canvas to the window
 resizeCanvasToWindow();
     
 //Draw the scene
-draw();
+draw(currPrimitive);
 
 //Show settings on UI
 displaySettings(cameraPosition, inverseLightDirection, lightIntensity);
@@ -302,10 +315,10 @@ document.getElementById('lightIntV').addEventListener('input', (e) => {
 });
 
 //apply camera changes
-applyCameraChanges(gl, canvas, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw); 
+applyCameraChanges(gl, canvas, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw, currPrimitive); 
 
 //apply lightDir changes
-applyLightDirChanges(gl, canvas, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw);
+applyLightDirChanges(gl, canvas, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw, currPrimitive, vertices);
 
 //apply light Int change
 document.getElementById('applyLightIntensity').addEventListener('click', () => {
@@ -320,12 +333,14 @@ document.getElementById('applyLightIntensity').addEventListener('click', () => {
 	}
 	else {
 		//Redraw the scene
-		draw();
+		draw(currPrimitive);
 	}
 	console.log('Light intensity updated:', lightIntensity);
 });
 
-document.getElementById('RandCube').addEventListener('click', () => {
+document.getElementById('RandParallelepiped').addEventListener('click', () => {
+
+	currPrimitive="parallelepiped";
 
 	// new random dimensions for the cube
     width_cube = getRandomFloat(0.1, 0.7);
@@ -349,6 +364,7 @@ document.getElementById('RandCube').addEventListener('click', () => {
 
 
     // new vertices for the cube
+	vertices = 36;
     cubes = new Float32Array([
         ...createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0), // base plan
         ...createCubeWithNormals(width_cube, height_cube, depth_cube, cubePositionX, upperCubeYPosition, cubePositionZ) // new cube
@@ -363,7 +379,7 @@ document.getElementById('RandCube').addEventListener('click', () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
     gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
     gl.clear(gl.DEPTH_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLES, 0, verticesPerCube * 2);
+    gl.drawArrays(gl.TRIANGLES, 0, vertices * 2);
 
 	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
 		//Resize and redraw
@@ -371,7 +387,53 @@ document.getElementById('RandCube').addEventListener('click', () => {
 	}
 	else {
 		//Redraw the scene
-		draw();
+		draw(currPrimitive);
 	}
-    
 });
+
+document.getElementById('RandSphere').addEventListener('click', () => {
+	currPrimitive="sphere";
+
+    // Genera un raggio casuale per la sfera
+    let sphereRadius = getRandomFloat(0.1, 0.5);
+
+    // Calcola la posizione della sfera sopra la base
+    let spherePositionY = baseCubeHeight / 2 + sphereRadius;
+
+    // Limita il movimento della sfera lungo X e Z per rimanere sopra la base
+    let maxOffsetX = 1 - sphereRadius * 2; // Limita il movimento lungo X
+    let maxOffsetZ = 1 - sphereRadius * 2; // Limita il movimento lungo Z
+
+    let spherePositionX = getRandomFloat(-maxOffsetX / 2, maxOffsetX / 2);
+    let spherePositionZ = getRandomFloat(-maxOffsetZ / 2, maxOffsetZ / 2);
+
+    // Genera i vertici per la base e per la sfera
+    let baseVertices = createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0); // Base
+    let sphereVertices = createSphere(sphereRadius, 32, spherePositionX, spherePositionY, spherePositionZ); // Sfera
+
+    vertices = new Float32Array([...baseVertices, ...sphereVertices]);
+	console.log("vertices length for sphere: " + vertices.length);
+
+    console.log("-----------------------NEW SPHERE-------------------------------");
+    console.log("Current radius: " + sphereRadius.toFixed(2));
+    console.log("Sphere position: (" + spherePositionX.toFixed(2) + ", " + spherePositionY.toFixed(2) + ", " + spherePositionZ.toFixed(2) + ")");
+
+    // Aggiorna il buffer con i nuovi vertici
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    // Aggiorna la shadow map
+    gl.useProgram(depthProgram);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+    gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
+
+    // Ridisegna la scena
+    if (window.innerWidth != canvas.width || window.innerHeight != canvas.height) {
+        resizeCanvasToWindow();
+    } else {
+        draw(currPrimitive);
+    }
+});
+
