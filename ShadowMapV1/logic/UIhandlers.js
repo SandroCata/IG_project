@@ -50,7 +50,6 @@ function changeLightDir(lightDir) {
 }
 
 function applyCameraChanges(gl, canvas, cameraPos, proj, orig, normalMatrixLoc, projectionLoc, draw, currPrimitive) {
-    document.getElementById('applyCamera').addEventListener('click', () => {
         view = createLookAt(cameraPos, orig);
         modelViewProjection = proj.multiply(view);
 
@@ -68,15 +67,12 @@ function applyCameraChanges(gl, canvas, cameraPos, proj, orig, normalMatrixLoc, 
         }
         else {
             //Redraw the scene
-            draw();
+            draw(currPrimitive);
         }
         console.log('Camera settings applied:', cameraPos);
-    });
 }
 
 function applyLightDirChanges(gl, canvas, lightDir, lightProj, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw, currPrimitive, vertices) {
-    document.getElementById('applyLight').addEventListener('click', () => {
-
         //Create new light MVP
         gl.uniform3fv(lightDirectionLoc, [lightDir.x, lightDir.y, lightDir.z]);
         let lightPovView = createLookAt(lightDir, origin);
@@ -113,8 +109,7 @@ function applyLightDirChanges(gl, canvas, lightDir, lightProj, origin, lightDire
         }
         else {
             //Redraw the scene
-            draw();
+            draw(currPrimitive);
         }
         console.log('Light settings applied:', lightDir);
-    });
 }

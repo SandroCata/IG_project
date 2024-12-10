@@ -315,10 +315,16 @@ document.getElementById('lightIntV').addEventListener('input', (e) => {
 });
 
 //apply camera changes
-applyCameraChanges(gl, canvas, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw, currPrimitive); 
+document.getElementById('applyCamera').addEventListener('click', () => {
+	applyCameraChanges(gl, canvas, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw, currPrimitive);
+});
+ 
 
 //apply lightDir changes
-applyLightDirChanges(gl, canvas, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw, currPrimitive, vertices);
+document.getElementById('applyLight').addEventListener('click', () => {
+	applyLightDirChanges(gl, canvas, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw, currPrimitive, vertices);
+});
+
 
 //apply light Int change
 document.getElementById('applyLightIntensity').addEventListener('click', () => {
