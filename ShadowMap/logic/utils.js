@@ -23,6 +23,34 @@ function createProgram(gl, vertexShaderText, fragmentShaderText) {
     return program;
 }
 
+// Vector math helpers
+function subtractVectors(v1, v2) {
+  return new DOMPoint(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+}
+
+function crossVectors(v1, v2) {
+  const x = v1.y * v2.z - v1.z * v2.y;
+  const y = v1.z * v2.x - v1.x * v2.z;
+  const z = v1.x * v2.y - v1.y * v2.x;
+  return new DOMPoint(x, y, z);
+}
+
+function dotVectors(v1, v2) {
+  return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
+
+function normalize(v1) {
+  const magnitude = getMagnitudeVector(v1);
+  if (magnitude === 0) {
+    return new DOMPoint();
+  }
+
+  return new DOMPoint(v1.x / magnitude, v1.y / magnitude, v1.z / magnitude);
+}
+
+function getMagnitudeVector(v1) {
+  return Math.hypot(v1.x, v1.y, v1.z);
+}
 
 //Orthografic Matrix to pass from 3D to 4D
 function createOrtho(bottom, top, left, right, near, far) {
@@ -62,35 +90,6 @@ function createPerspective(fov, aspect, near, far) {
       xAxis.z, yAxis.z, invertedZ.z, 0,
       -dotVectors(xAxis, position), -dotVectors(yAxis, position), -dotVectors(invertedZ, position), 1,
     ]);
-}
-  
-// Vector math helpers
- function subtractVectors(v1, v2) {
-    return new DOMPoint(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
-}
-  
- function crossVectors(v1, v2) {
-    const x = v1.y * v2.z - v1.z * v2.y;
-    const y = v1.z * v2.x - v1.x * v2.z;
-    const z = v1.x * v2.y - v1.y * v2.x;
-    return new DOMPoint(x, y, z);
-}
-  
- function dotVectors(v1, v2) {
-    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-}
-  
- function normalize(v1) {
-    const magnitude = getMagnitudeVector(v1);
-    if (magnitude === 0) {
-      return new DOMPoint();
-    }
-  
-    return new DOMPoint(v1.x / magnitude, v1.y / magnitude, v1.z / magnitude);
-}
-  
- function getMagnitudeVector(v1) {
-    return Math.hypot(v1.x, v1.y, v1.z);
 }
 
 function calculateNormalMatrix(modelViewMatrix) {
@@ -134,54 +133,6 @@ function calculateNormalMatrix(modelViewMatrix) {
   ];
 
   return normalMatrix4x4;
-}
-  
-//multi colored cube at a given size and position
- function createMultiColorCube(width, height, depth, x, y, z) {
-    return new Float32Array([
-      //    X           Y          Z         R G B
-      -width + x,-height + y,-depth + z,   0,1,1,
-      -width + x, height + y, depth + z,   0,1,1,
-      -width + x, height + y,-depth + z,   0,1,1,
-      -width + x, -height + y, depth + z,   0,1,1,
-      -width + x, height + y, depth + z,   0,1,1,
-      -width + x,-height + y,-depth + z,   0,1,1,
-  
-      width + x ,-height + y,-depth + z,   1,0,1,
-      width + x , height + y,-depth + z,   1,0,1,
-      width + x , height + y, depth + z,   1,0,1,
-      width + x , height + y, depth + z,   1,0,1,
-      width + x ,-height + y, depth + z,   1,0,1,
-      width + x ,-height + y,-depth + z,   1,0,1,
-  
-      -width + x,-height + y,-depth + z,   0,1,0,
-      width + x,-height + y,-depth + z,   0,1,0,
-      width + x,-height + y, depth + z,   0,1,0,
-      width + x,-height + y, depth + z,   0,1,0,
-      -width + x,-height + y, depth + z,   0,1,0,
-      -width + x,-height + y,-depth + z,   0,1,0,
-  
-      -width + x, height + y,-depth + z,   1,1,0,
-      width + x, height + y, depth + z,   1,1,0,
-      width + x, height + y,-depth + z,   1,1,0,
-      -width + x, height + y, depth + z,   1,1,0,
-      width + x, height + y, depth + z,   1,1,0,
-      -width + x, height + y,-depth + z,   1,1,0,
-  
-      width + x,-height + y,-depth + z,   0,0,1,
-      -width + x,-height + y,-depth + z,   0,0,1,
-      width + x, height + y,-depth + z,   0,0,1,
-      -width + x, height + y,-depth + z,   0,0,1,
-      width + x, height + y,-depth + z,   0,0,1,
-      -width + x,-height + y,-depth + z,   0,0,1,
-  
-      -width + x,-height + y, depth + z,   1,0,0,
-      width + x,-height + y, depth + z,   1,0,0,
-      width + x, height + y, depth + z,   1,0,0,
-      width + x, height + y, depth + z,   1,0,0,
-      -width + x, height + y, depth + z,   1,0,0,
-      -width + x,-height + y, depth + z,   1,0,0,
-    ]);
 }
   
 // multi colored cube at a given size and position with normals for light
@@ -232,10 +183,7 @@ function calculateNormalMatrix(modelViewMatrix) {
     ]);
 }
 
-function getRandomFloat(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
+//pseudo sphere
 function createSphere(radius, segments, positionX, positionY, positionZ) {
   const vertices = [];
   for (let lat = 0; lat <= segments; lat++) {
@@ -261,5 +209,10 @@ function createSphere(radius, segments, positionX, positionY, positionZ) {
   }
 
   return vertices;
+}
+
+//randFloat helper
+function getRandomFloat(min, max) {
+  return Math.random() * (max - min) + min;
 }
 

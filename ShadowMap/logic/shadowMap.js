@@ -1,7 +1,5 @@
 //by using sampler2DShadow, while WebGL won’t attempt to smooth out the scaled pixels of your shadow map, it does smooth out the rendered pixels in-between the shadowed and lit areas.
 
-//MAIN
-
 //vertex and fragment shaders for the light point of view
 
 //Light POV
@@ -105,7 +103,7 @@ void main()
 	fragColor = color * brightness;
 }`;
 
-let currPrimitive = "parallelepiped";
+let currPrimitive = "parallelepiped"; //initially this value
 
 //Context creation for WebGL
 const canvas = document.querySelector('canvas');
@@ -118,20 +116,17 @@ const depthProgram = createProgram(gl, depthVertexShader, depthFragmentShader);
 //Depth test enabled so that overlayed items are properly rendered 
 gl.enable(gl.DEPTH_TEST);
 
-//bias improvement
-//gl.enable(gl.CULL_FACE);
-
 //Setting initial origin point
 let origin = new DOMPoint(0, 0, 0);
 
 // Set Light MVP Matrix (light direction can vary)
 gl.useProgram(program);
-let inverseLightDirection = new DOMPoint(-0.5, 2, -2); 				//initially here
+let LightDir = new DOMPoint(-0.5, 2, -2); 				//initially here
 let lightDirectionLoc = gl.getUniformLocation(program,'uLightDirection');
-gl.uniform3fv(lightDirectionLoc, new Float32Array([inverseLightDirection.x, inverseLightDirection.y, inverseLightDirection.z]));
-let lightPovProjection = createOrtho(-1,1,-1,1,0,4);
-let lightPovView = createLookAt(inverseLightDirection, origin);
-let lightPovMvp = lightPovProjection.multiply(lightPovView);
+gl.uniform3fv(lightDirectionLoc, new Float32Array([LightDir.x, LightDir.y, LightDir.z]));
+let lightProj = createOrtho(-1,1,-1,1,0,4);
+let lightPovView = createLookAt(LightDir, origin);
+let lightPovMvp = lightProj.multiply(lightPovView);
 
 let lightPovMvpDepthLocation = gl.getUniformLocation(depthProgram, 'lightPovMvp');
 gl.useProgram(depthProgram);
@@ -168,38 +163,15 @@ let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
 let normalMatrixLoc = gl.getUniformLocation(program, 'normalMatrix');
 gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
-
-// Create cubes and bind their data
-let width_cube=getRandomFloat(0.1, 0.7);
-let height_cube=getRandomFloat(0.25, 0.55);
-let depth_cube=getRandomFloat(0.1, 0.4);
-console.log("-----------------------NEW CUBE-------------------------------");
-console.log("Current width_cube: "+ width_cube.toFixed(2));
-console.log("Current height_cube: "+ height_cube.toFixed(2));
-console.log("Current depth_cube: "+ depth_cube.toFixed(2));
-
 //avoids cube to be rendered inside and below the base cube
 let baseCubeHeight = 0.01; 
-let upperCubeYPosition = baseCubeHeight + height_cube;;
 
 
 let vertices = 36;
-let cubes = new Float32Array([
-	...createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0),
-	...createCubeWithNormals(width_cube, height_cube, depth_cube, 0, upperCubeYPosition, 0)
-]);
-console.log(cubes.length);
+let cubes = null;
 
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, cubes, gl.STATIC_DRAW);
-
-//Buffer attributes
-gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
-gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
-gl.enableVertexAttribArray(0);
-gl.enableVertexAttribArray(1);
 
 // Depth Texture
 const depthTextureSize = new DOMPoint(1024, 1024);
@@ -219,7 +191,7 @@ gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, dept
 // Get access to the shadow map uniform so we can set it during draw
 let shadowMapLocation = gl.getUniformLocation(program, 'shadowMap');
 
-let lightIntensity = 1.0;  // Intensità iniziale della luce
+let lightIntensity = 1.0;  // Initially this value
 const lightIntensityLoc = gl.getUniformLocation(program, 'lightIntensity');
 gl.uniform1f(lightIntensityLoc, lightIntensity);
 
@@ -229,7 +201,6 @@ function draw(primitive) {
 
 	// Render shadow map to depth texture
 	gl.useProgram(depthProgram);
-	//gl.cullFace(gl.FRONT);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
 	gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
 	if(primitive == "parallelepiped") {
@@ -242,7 +213,6 @@ function draw(primitive) {
 
 	// Set depth texture and render scene to canvas
 	gl.useProgram(program);
-	//gl.cullFace(gl.BACK);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 	gl.bindTexture(gl.TEXTURE_2D, depthTexture);
@@ -284,50 +254,142 @@ function resizeCanvasToWindow() {
 	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
 	console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-	console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
+	//console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
 	
 
 	draw(currPrimitive);
 }
 
-// Adapt canvas to the window
-resizeCanvasToWindow();
-    
-//Draw the scene
-draw(currPrimitive);
+//display values on the sliders
+function displaySettings() {
+    document.getElementById('valueX').innerText = cameraPosition.x.toFixed(2);
+	document.getElementById('valueY').innerText = cameraPosition.y.toFixed(2);
+	document.getElementById('valueZ').innerText = cameraPosition.z.toFixed(2);
 
-//Show settings on UI
-displaySettings(cameraPosition, inverseLightDirection, lightIntensity);
+	document.getElementById('lightvX').innerText = LightDir.x.toFixed(2);
+	document.getElementById('lightvY').innerText = LightDir.y.toFixed(2);
+	document.getElementById('lightvZ').innerText = LightDir.z.toFixed(2);
 
-//resize all everytime window is resized or moved to another screen
-window.addEventListener('resize', resizeCanvasToWindow);
+	document.getElementById('lightInt').innerText = lightIntensity.toFixed(2);
+}
 
 //change camera position values
-changeCamera(cameraPosition);
+function changeCamera(param) {
+	const id = param.id;
+
+	if(id==="cameraX") {
+		cameraPosition.x = parseFloat(param.value);
+		//document.getElementById('valueX').innerText = cameraPosition.x.toFixed(2);
+	}
+	
+	if(id==="cameraY") {
+		cameraPosition.y = parseFloat(param.value);
+		//document.getElementById('valueY').innerText = cameraPosition.y.toFixed(2);
+	}
+	if(id === "cameraZ") {
+		cameraPosition.z = parseFloat(param.value);
+		//document.getElementById('valueZ').innerText = cameraPosition.z.toFixed(2);
+	}
+	displaySettings();
+}
 
 //change light direction values
-changeLightDir(inverseLightDirection);
+function changeLightDir(param) {
 
-//change light intensity 
-document.getElementById('lightIntV').addEventListener('input', (e) => {
-	lightIntensity = parseFloat(e.target.value);
-	document.getElementById('lightInt').innerText = lightIntensity.toFixed(2);
-});
+	const id = param.id;
 
-//apply camera changes
-document.getElementById('applyCamera').addEventListener('click', () => {
-	applyCameraChanges(gl, canvas, cameraPosition, projection, origin, normalMatrixLoc, projectionLoc, draw, currPrimitive);
-});
- 
+	if(id==="lightX") {
+		LightDir.x = parseFloat(param.value);
+		//document.getElementById('valueX').innerText = cameraPosition.x.toFixed(2);
+	}
+	
+	if(id==="lightY") {
+		LightDir.y = parseFloat(param.value);
+		//document.getElementById('valueY').innerText = cameraPosition.y.toFixed(2);
+	}
+	if(id === "lightZ") {
+		LightDir.z = parseFloat(param.value);
+		//document.getElementById('valueZ').innerText = cameraPosition.z.toFixed(2);
+	}
+	displaySettings();
+}
 
-//apply lightDir changes
-document.getElementById('applyLight').addEventListener('click', () => {
-	applyLightDirChanges(gl, canvas, inverseLightDirection, lightPovProjection, origin, lightDirectionLoc, depthProgram, program, lightPovMvpDepthLocation, lightPovMvpRenderLocation, textureSpaceConversion, depthFramebuffer, depthTextureSize, draw, currPrimitive, vertices);
-});
+//change light intensity
+function changeLightInt(param) {
+	lightIntensity = parseFloat(param.value);
+	displaySettings();
+}
+
+//apply camera changes (click)
+function applyCameraChanges() {
+	view = createLookAt(cameraPosition, origin);
+	modelViewProjection = projection.multiply(view);
+
+	let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
+
+	
+	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
+
+	gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
 
-//apply light Int change
-document.getElementById('applyLightIntensity').addEventListener('click', () => {
+	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+		//Resize and redraw
+		resizeCanvasToWindow();
+	}
+	else {
+		//Redraw the scene
+		draw(currPrimitive);
+	}
+	console.log('Camera settings applied:', cameraPosition);
+}
+
+//apply lightDir changes (click)
+function applyLightDirChanges() {
+
+	//Create new light MVP
+	gl.uniform3fv(lightDirectionLoc, [LightDir.x, LightDir.y, LightDir.z]);
+	let lightPovView = createLookAt(LightDir, origin);
+	let lightPovMvp = lightProj.multiply(lightPovView);
+
+	gl.useProgram(depthProgram);
+	gl.uniformMatrix4fv(lightPovMvpDepthLocation, false, lightPovMvp.toFloat32Array());
+
+	gl.useProgram(program);
+	let textureSpaceMvp = textureSpaceConversion.multiply(lightPovMvp);
+	gl.uniformMatrix4fv(lightPovMvpRenderLocation, false, textureSpaceMvp.toFloat32Array());
+
+
+	// Pass it to light rendering
+	gl.useProgram(depthProgram);
+	// generete the new shadow map with the new lightdirection
+	gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+	gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
+	gl.clear(gl.DEPTH_BUFFER_BIT);
+	if(currPrimitive=="parallelepiped")
+		gl.drawArrays(gl.TRIANGLES, 0, vertices * 2);
+	else
+		gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
+	
+	gl.useProgram(program);
+	//draw updated scene
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+	//gl.uniform1f(lightIntensityLoc, lightIntensity);  // Aggiorna l'uniform nello shader
+
+	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+		//Resize and redraw
+		resizeCanvasToWindow();
+	}
+	else {
+		//Redraw the scene
+		draw(currPrimitive);
+	}
+	console.log('Light settings applied:', LightDir);
+}
+
+//apply light Int change (click)
+function applyLightIntChanges() {
 
 	gl.useProgram(program);
 	gl.uniform1f(lightIntensityLoc, lightIntensity);  // update uniform var in shader
@@ -342,16 +404,17 @@ document.getElementById('applyLightIntensity').addEventListener('click', () => {
 		draw(currPrimitive);
 	}
 	console.log('Light intensity updated:', lightIntensity);
-});
+}
 
-document.getElementById('RandParallelepiped').addEventListener('click', () => {
+//generate random parallelepiped (click)
+function RandParallelepiped() {
 
 	currPrimitive="parallelepiped";
 
 	// new random dimensions for the cube
-    width_cube = getRandomFloat(0.1, 0.7);
-    height_cube = getRandomFloat(0.25, 0.55);
-    depth_cube = getRandomFloat(0.1, 0.4);
+    let width_cube = getRandomFloat(0.1, 0.7);
+    let height_cube = getRandomFloat(0.25, 0.55);
+    let depth_cube = getRandomFloat(0.1, 0.4);
 
     console.log("-----------------------NEW CUBE-------------------------------");
 	console.log("Current width_cube: "+ width_cube.toFixed(2));
@@ -360,7 +423,7 @@ document.getElementById('RandParallelepiped').addEventListener('click', () => {
 
 
 	//avoids cube to be rendered inside and below the base cube 
-	upperCubeYPosition = baseCubeHeight + height_cube;
+	let upperCubeYPosition = baseCubeHeight + height_cube;
 
 	let maxOffsetX = (1 - width_cube) / 2; // Limita il movimento lungo l'asse X
 	let maxOffsetZ = (1 - depth_cube) / 2; // Limita il movimento lungo l'asse Z
@@ -380,6 +443,12 @@ document.getElementById('RandParallelepiped').addEventListener('click', () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, cubes, gl.STATIC_DRAW);
 
+	//Buffer attributes
+	gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+	gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+	gl.enableVertexAttribArray(0);
+	gl.enableVertexAttribArray(1);
+
 	// Update the shadow map
     gl.useProgram(depthProgram);
     gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
@@ -395,9 +464,10 @@ document.getElementById('RandParallelepiped').addEventListener('click', () => {
 		//Redraw the scene
 		draw(currPrimitive);
 	}
-});
+}
 
-document.getElementById('RandSphere').addEventListener('click', () => {
+//generate random pseudosphere
+function RandSphere () {
 	currPrimitive="sphere";
 
     // Genera un raggio casuale per la sfera
@@ -441,5 +511,4 @@ document.getElementById('RandSphere').addEventListener('click', () => {
     } else {
         draw(currPrimitive);
     }
-});
-
+}
