@@ -184,6 +184,11 @@ let baseVertices = null;
 
 let sphereData = null;
 
+//camera rotation useful variables
+let isAutoRotating = false;
+let cameraAngleX = 0; // initial angle
+const rotationSpeed = 0.01; // Rotation velocity (radiants per frame)
+
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
 const indexBuffer = gl.createBuffer();
@@ -362,6 +367,62 @@ function changeCamera(param) {
 		//document.getElementById('valueZ').innerText = cameraPosition.z.toFixed(2);
 	}
 	displaySettings();
+}
+
+//autoRotate camera on x-axis
+function startAutoRotation() {
+    isAutoRotating = true;
+
+    document.getElementById('startAutoRotation').disabled = true; // Disabilita il pulsante Start
+    document.getElementById('stopAutoRotation').disabled = false; // Abilita il pulsante Stop
+
+    function rotate() {
+        // Interrompe l'animazione se l'autorotazione è disabilitata
+        if (!isAutoRotating) return;
+
+        // Aumenta l'angolo
+        cameraAngleX += rotationSpeed;
+
+        // Calcola la nuova posizione della camera
+        const radius = 2; // Distanza dall'origine
+        const x = radius * Math.sin(cameraAngleX);
+        const z = radius * Math.cos(cameraAngleX);
+
+        // Aggiorna la posizione della camera
+        cameraPosition = new DOMPoint(x, cameraPosition.y, z);
+
+        // Aggiorna la matrice View
+        view = createLookAt(cameraPosition, origin);
+
+        // Aggiorna la matrice MVP
+        modelViewProjection = projection.multiply(view);
+        gl.useProgram(program);
+        gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
+
+        // Aggiorna la matrice normale
+        normalMatrix = calculateNormalMatrix(view.toFloat32Array());
+        gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
+
+        if (window.innerWidth != canvas.width || window.innerHeight != canvas.height) {
+            // Ridimensiona e ridisegna
+            resizeCanvasToWindow();
+        } else {
+            // Ridisegna la scena
+            draw(currPrimitive);
+        }
+
+        // Richiama il prossimo frame
+        requestAnimationFrame(rotate);
+    }
+
+    rotate(); // Avvia l'animazione
+}
+
+function stopAutoRotation() {
+    isAutoRotating = false; // Interrompe l'autorotazione
+
+    document.getElementById('startAutoRotation').disabled = false; // Abilita il pulsante Start
+    document.getElementById('stopAutoRotation').disabled = true; // Disabilita il pulsante Stop
 }
 
 //change light direction values
