@@ -1,6 +1,5 @@
-//by using sampler2DShadow, while WebGL won’t attempt to smooth out the scaled pixels of your shadow map, it does smooth out the rendered pixels in-between the shadowed and lit areas.
-
-//vertex and fragment shaders for the light point of view
+//sampler2DShadow smooths out the rendered pixels in-between the shadowed and lit areas.
+//(while WebGL won’t attempt to smooth out the scaled pixels of your shadow map)
 
 //Light POV
 
@@ -35,7 +34,6 @@ fragDepth = gl_FragCoord.z;
 `;
 
 //Camera POV
-
 const vertexShaderSrc = `#version 300 es
 
 layout(location=0) in vec4 aPosition;
@@ -103,7 +101,8 @@ void main()
 	fragColor = color * brightness;
 }`;
 
-let currPrimitive = "parallelepiped"; //initially this value
+//tells which primitive will be rendered and shadowMapped
+let currPrimitive = null; 
 
 //Context creation for WebGL
 const canvas = document.querySelector('canvas');
@@ -166,12 +165,28 @@ gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 //avoids cube to be rendered inside and below the base cube
 let baseCubeHeight = 0.01; 
 
-
+//initialization of all cubes and sphere useful variables
 let vertices = 36;
 let cubes = null;
 
+let sphereRadius = null;
+
+let spherePositionY = null;
+
+let maxOffsetX = null;
+let maxOffsetZ = null;
+
+let spherePositionX = null;
+let spherePositionZ = null;
+
+
+let baseVertices = null;
+
+let sphereData = null;
+
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
+const indexBuffer = gl.createBuffer();
 
 // Depth Texture
 const depthTextureSize = new DOMPoint(1024, 1024);
@@ -197,18 +212,21 @@ gl.uniform1f(lightIntensityLoc, lightIntensity);
 
 //Rendering
 function draw(primitive) {
+	if(primitive == "parallelepiped") 
+		drawCubes();
+	else
+		drawCubeSphere();
+}
+
+function drawCubes() {
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	// Render shadow map to depth texture
 	gl.useProgram(depthProgram);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
 	gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
-	if(primitive == "parallelepiped") {
-		gl.drawArrays(gl.TRIANGLES, 0, vertices * 2); //two cubes so 36 * 2
-	}
-	else {
-		gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
-	}
+	gl.drawArrays(gl.TRIANGLES, 0, vertices * 2); 
+	
 	
 
 	// Set depth texture and render scene to canvas
@@ -217,12 +235,65 @@ function draw(primitive) {
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 	gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 	gl.uniform1i(shadowMapLocation, 0);
-	if(primitive == "parallelepiped") {
-		gl.drawArrays(gl.TRIANGLES, 0, vertices * 2);
-	}
-	else {
-		gl.drawArrays(gl.TRIANGLES, 0, vertices.length /6);
-	}
+	gl.drawArrays(gl.TRIANGLES, 0, vertices * 2);
+}
+
+function drawCubeSphere() {
+
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	// Shadow map drawing
+    gl.useProgram(depthProgram);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+    gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+
+	// Base Cube drawing
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); // Position
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); // Normal
+    gl.enableVertexAttribArray(0);
+    gl.enableVertexAttribArray(1);
+    gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
+
+    // Sphere drawing
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphereData.indices, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
+    gl.enableVertexAttribArray(0);
+    gl.enableVertexAttribArray(1);
+    gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
+
+    //Reset framebuffer for final rendering
+    gl.useProgram(program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+    gl.uniform1i(shadowMapLocation, 0);
+
+    
+    // Draw final scene
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
+    gl.enableVertexAttribArray(0);
+    gl.enableVertexAttribArray(1);
+    gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphereData.indices, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
+    gl.enableVertexAttribArray(0);
+    gl.enableVertexAttribArray(1);
+    gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
 }
 
 // Update dimensions depending on window size
@@ -467,48 +538,39 @@ function RandParallelepiped() {
 }
 
 //generate random pseudosphere
-function RandSphere () {
-	currPrimitive="sphere";
+function RandSphere() {
+    currPrimitive = "sphere";
 
     // Genera un raggio casuale per la sfera
-    let sphereRadius = getRandomFloat(0.1, 0.5);
+    sphereRadius = getRandomFloat(0.1, 0.5);
 
     // Calcola la posizione della sfera sopra la base
-    let spherePositionY = baseCubeHeight / 2 + sphereRadius;
+    spherePositionY = baseCubeHeight / 2 + sphereRadius;
 
     // Limita il movimento della sfera lungo X e Z per rimanere sopra la base
-    let maxOffsetX = 1 - sphereRadius * 2; // Limita il movimento lungo X
-    let maxOffsetZ = 1 - sphereRadius * 2; // Limita il movimento lungo Z
+    maxOffsetX = 1 - sphereRadius * 2;
+    maxOffsetZ = 1 - sphereRadius * 2;
 
-    let spherePositionX = getRandomFloat(-maxOffsetX / 2, maxOffsetX / 2);
-    let spherePositionZ = getRandomFloat(-maxOffsetZ / 2, maxOffsetZ / 2);
+    spherePositionX = getRandomFloat(-maxOffsetX / 2, maxOffsetX / 2);
+    spherePositionZ = getRandomFloat(-maxOffsetZ / 2, maxOffsetZ / 2);
 
-    // Genera i vertici per la base e per la sfera
-    let baseVertices = createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0); // Base
-    let sphereVertices = createSphere(sphereRadius, 32, spherePositionX, spherePositionY, spherePositionZ); // Sfera
+    // Genera i dati della base
+    baseVertices = createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0);
 
-    vertices = new Float32Array([...baseVertices, ...sphereVertices]);
-	console.log("vertices length for sphere: " + vertices.length);
+    // Genera i dati della sfera
+    sphereData = createSphere(sphereRadius, 256, spherePositionX, spherePositionY, spherePositionZ);
 
     console.log("-----------------------NEW SPHERE-------------------------------");
     console.log("Current radius: " + sphereRadius.toFixed(2));
     console.log("Sphere position: (" + spherePositionX.toFixed(2) + ", " + spherePositionY.toFixed(2) + ", " + spherePositionZ.toFixed(2) + ")");
 
-    // Aggiorna il buffer con i nuovi vertici
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    // Aggiorna la shadow map
-    gl.useProgram(depthProgram);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
-    gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
-    gl.clear(gl.DEPTH_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
-
-    // Ridisegna la scena
-    if (window.innerWidth != canvas.width || window.innerHeight != canvas.height) {
-        resizeCanvasToWindow();
-    } else {
-        draw(currPrimitive);
-    }
+    if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
+		//Resize and redraw
+		resizeCanvasToWindow();
+	}
+	else {
+		//Redraw the scene
+		draw(currPrimitive);
+	}
 }
+
