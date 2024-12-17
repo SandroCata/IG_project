@@ -67,17 +67,16 @@ uniform mediump sampler2DShadow shadowMap;
 
 out vec3 fragColor;
 
-float ambientLight = 0.25;
+float ambientLight = 0.22;
 
 //improvement parametrs
-float bias = 0.005;
+float bias = 0.0035;
 float visibility = 1.0;
-float shadowSpread = 1100.0;
+float shadowSpread = 900.0;
 uniform float lightIntensity;
 
 //sampling the four adjacent pixels
-vec2 adjacentPixels[5] = vec2[](
-	vec2(0, 0),
+vec2 adjacentPixels[4] = vec2[](
 	vec2(-1, 0), 
 	vec2(1, 0), 
 	vec2(0, 1), 
@@ -88,10 +87,10 @@ vec3 color = vec3(1.0, 1.0, 1.0);
 
 void main()
 {
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 4; i++) {
 		vec3 sampledPos = vec3(positionFromLightPov.xy + adjacentPixels[i]/shadowSpread, positionFromLightPov.z - bias);
 		float hitByLight = texture(shadowMap, sampledPos);
-    	visibility *= max(hitByLight, 0.9);
+    	visibility *= max(hitByLight, 0.84);
 	}
 	vec3 normalizedNormal = normalize(vNormal);
 	vec3 normalizedLightDir = normalize(uLightDirection);
@@ -131,10 +130,19 @@ let lightPovMvpDepthLocation = gl.getUniformLocation(depthProgram, 'lightPovMvp'
 gl.useProgram(depthProgram);
 gl.uniformMatrix4fv(lightPovMvpDepthLocation, false, lightPovMvp.toFloat32Array());
 
-//substitutes 'vec3 lightPovPositionInTexture = positionFromLightPov.xyz * 0.5 + 0.5;' in fragmentShader;
-//instead of doing convertion for each pixel we do it for each draw call
-//All the vertices are already multiplied by the light pov matrix to get their position from the light. So you multiply that matrix by a matrix that scales 0.5 and translates 0.5 before using it, same effect.
-//translation on last row and scale on the diagonal
+/*
+The following code substitutes 'vec3 lightPovPositionInTexture = positionFromLightPov.xyz * 0.5 + 0.5;' in fragmentShader;
+instead of doing convertion for each pixel we do it for each draw call
+All the vertices are already multiplied by the light pov matrix to get their position from the light. So you multiply that matrix by a matrix that scales 0.5 and translates 0.5 before using it, same effect.
+translation on last row and scale on the diagonal
+This combination of matrices is what allows the shadow map to work correctly:
+
+    - lightPovMvp: it transforms the coordinates of the scene from the point of view of the light.
+
+    - textureSpaceConversion: it converts these coordinates into a normalized space [0,1][0,1], which is necessary to index the shadow map correctly.
+
+The following part of the code translates the position of a fragment on the screen into the shadow map space to determine whether it is shadowed or illuminated 
+*/
 const textureSpaceConversion = new DOMMatrix([
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
@@ -187,19 +195,19 @@ let sphereData = null;
 //camera rotation useful variables
 let isAutoRotating = false;
 let cameraAngleX = 0; // initial angle
-const rotationSpeed = 0.01; // Rotation velocity (radiants per frame)
+const rotationSpeed = 0.005; // Rotation velocity (radiants per frame)
 
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
 const indexBuffer = gl.createBuffer();
 
 // Depth Texture
-const depthTextureSize = new DOMPoint(1024, 1024);
+const depthTextureSize = new DOMPoint(4096, 4096);
 const depthTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT32F, depthTextureSize.x, depthTextureSize.y);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -226,7 +234,7 @@ function draw(primitive) {
 function drawCubes() {
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-	// Render shadow map to depth texture
+	// Shadow map drawing from Light POV----------------------------------
 	gl.useProgram(depthProgram);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
 	gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
@@ -234,7 +242,7 @@ function drawCubes() {
 	
 	
 
-	// Set depth texture and render scene to canvas
+	//Reset framebuffer for final rendering from Camera POV-----------------------------------
 	gl.useProgram(program);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -247,7 +255,7 @@ function drawCubeSphere() {
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-	// Shadow map drawing
+	// Shadow map drawing from Light POV----------------------------------
     gl.useProgram(depthProgram);
     gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
     gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
@@ -273,7 +281,7 @@ function drawCubeSphere() {
     gl.enableVertexAttribArray(1);
     gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
 
-    //Reset framebuffer for final rendering
+    //Reset framebuffer for final rendering from Camera POV-----------------------------------
     gl.useProgram(program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -281,7 +289,7 @@ function drawCubeSphere() {
     gl.uniform1i(shadowMapLocation, 0);
 
     
-    // Draw final scene
+    // Base Cube drawing
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
@@ -290,6 +298,7 @@ function drawCubeSphere() {
     gl.enableVertexAttribArray(1);
     gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
 
+	// Sphere drawing
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -545,7 +554,7 @@ function RandParallelepiped() {
 
 	// new random dimensions for the cube
     let width_cube = getRandomFloat(0.1, 0.7);
-    let height_cube = getRandomFloat(0.25, 0.55);
+    let height_cube = getRandomFloat(0.2, 0.5);
     let depth_cube = getRandomFloat(0.1, 0.4);
 
     console.log("-----------------------NEW CUBE-------------------------------");
@@ -603,7 +612,7 @@ function RandSphere() {
     currPrimitive = "sphere";
 
     // Genera un raggio casuale per la sfera
-    sphereRadius = getRandomFloat(0.1, 0.5);
+    sphereRadius = getRandomFloat(0.05, 0.55);
 
     // Calcola la posizione della sfera sopra la base
     spherePositionY = baseCubeHeight / 2 + sphereRadius;
