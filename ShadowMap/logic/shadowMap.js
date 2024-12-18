@@ -59,6 +59,7 @@ const fragmentShaderSrc = `#version 300 es
 precision mediump float;
 
 uniform vec3 uLightDirection;
+uniform int currPrimitive;
 
 in vec3 vNormal;
 in vec4 positionFromLightPov;
@@ -70,7 +71,8 @@ out vec3 fragColor;
 float ambientLight = 0.22;
 
 //improvement parametrs
-float bias = 0.0035;
+float biasCube = 0.002;
+float biasSphere = 0.048;
 float visibility = 1.0;
 float shadowSpread = 900.0;
 uniform float lightIntensity;
@@ -88,7 +90,11 @@ vec3 color = vec3(1.0, 1.0, 1.0);
 void main()
 {
 	for (int i = 0; i < 4; i++) {
-		vec3 sampledPos = vec3(positionFromLightPov.xy + adjacentPixels[i]/shadowSpread, positionFromLightPov.z - bias);
+		vec3 sampledPos;
+		if(currPrimitive == 0) 
+			sampledPos = vec3(positionFromLightPov.xy + adjacentPixels[i]/shadowSpread, positionFromLightPov.z - biasCube);
+		else 
+			sampledPos = vec3(positionFromLightPov.xy + adjacentPixels[i]/shadowSpread, positionFromLightPov.z - biasSphere);
 		float hitByLight = texture(shadowMap, sampledPos);
     	visibility *= max(hitByLight, 0.84);
 	}
@@ -99,6 +105,19 @@ void main()
 	float brightness = lightCos * visibility * lightIntensity + ambientLight;
 	fragColor = color * brightness;
 }`;
+//disable buttons and inputs
+document.getElementById('startAutoRotationCamera').disabled = true; 
+document.getElementById('stopAutoRotationCamera').disabled = true; 
+document.getElementById('applyCamera').disabled = true; 
+document.getElementById('cameraX').disabled = true; 
+document.getElementById('cameraY').disabled = true; 
+document.getElementById('cameraZ').disabled = true; 
+document.getElementById('applyLight').disabled = true; 
+document.getElementById('lightX').disabled = true;
+document.getElementById('lightY').disabled = true
+document.getElementById('lightZ').disabled = true
+document.getElementById('applyLightIntensity').disabled = true; 
+document.getElementById('lightIntV').disabled = true;
 
 //tells which primitive will be rendered and shadowMapped
 let currPrimitive = null; 
@@ -129,6 +148,9 @@ let lightPovMvp = lightProj.multiply(lightPovView);
 let lightPovMvpDepthLocation = gl.getUniformLocation(depthProgram, 'lightPovMvp');
 gl.useProgram(depthProgram);
 gl.uniformMatrix4fv(lightPovMvpDepthLocation, false, lightPovMvp.toFloat32Array());
+
+//var for currPrimitive in fragmentShader
+let currPrimitiveLoc = gl.getUniformLocation(program,'currPrimitive');
 
 /*
 The following code substitutes 'vec3 lightPovPositionInTexture = positionFromLightPov.xyz * 0.5 + 0.5;' in fragmentShader;
@@ -192,9 +214,11 @@ let baseVertices = null;
 
 let sphereData = null;
 
-//camera rotation useful variables
-let isAutoRotating = false;
+//camera and light rotation useful variables
+let isAutoRotatingCamera = false;
 let cameraAngleX = 0; // initial angle
+
+
 const rotationSpeed = 0.005; // Rotation velocity (radiants per frame)
 
 //Creating vertex buffer
@@ -206,8 +230,8 @@ const depthTextureSize = new DOMPoint(4096, 4096);
 const depthTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT32F, depthTextureSize.x, depthTextureSize.y);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -225,9 +249,9 @@ gl.uniform1f(lightIntensityLoc, lightIntensity);
 
 //Rendering
 function draw(primitive) {
-	if(primitive == "parallelepiped") 
+	if(primitive == "parallelepiped") //parallelepiped
 		drawCubes();
-	else
+	else	//sphere
 		drawCubeSphere();
 }
 
@@ -252,62 +276,64 @@ function drawCubes() {
 }
 
 function drawCubeSphere() {
+	if(baseVertices!=null && sphereData!=null) {
 
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-	// Shadow map drawing from Light POV----------------------------------
-    gl.useProgram(depthProgram);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
-    gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
-    gl.clear(gl.DEPTH_BUFFER_BIT);
+		// Shadow map drawing from Light POV----------------------------------
+		gl.useProgram(depthProgram);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+		gl.viewport(0, 0, depthTextureSize.x, depthTextureSize.y);
+		gl.clear(gl.DEPTH_BUFFER_BIT);
 
-	// Base Cube drawing
-	gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); // Position
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); // Normal
-    gl.enableVertexAttribArray(0);
-    gl.enableVertexAttribArray(1);
-    gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
+		// Base Cube drawing
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
+		gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); // Position
+		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); // Normal
+		gl.enableVertexAttribArray(0);
+		gl.enableVertexAttribArray(1);
+		gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
 
-    // Sphere drawing
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphereData.indices, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
-    gl.enableVertexAttribArray(0);
-    gl.enableVertexAttribArray(1);
-    gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
+		// Sphere drawing
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphereData.indices, gl.STATIC_DRAW);
+		gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
+		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
+		gl.enableVertexAttribArray(0);
+		gl.enableVertexAttribArray(1);
+		gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
 
-    //Reset framebuffer for final rendering from Camera POV-----------------------------------
-    gl.useProgram(program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.bindTexture(gl.TEXTURE_2D, depthTexture);
-    gl.uniform1i(shadowMapLocation, 0);
+		//Reset framebuffer for final rendering from Camera POV-----------------------------------
+		gl.useProgram(program);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+		gl.uniform1i(shadowMapLocation, 0);
 
-    
-    // Base Cube drawing
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
-    gl.enableVertexAttribArray(0);
-    gl.enableVertexAttribArray(1);
-    gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
+		
+		// Base Cube drawing
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, baseVertices, gl.STATIC_DRAW);
+		gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
+		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
+		gl.enableVertexAttribArray(0);
+		gl.enableVertexAttribArray(1);
+		gl.drawArrays(gl.TRIANGLES, 0, baseVertices.length / 6);
 
-	// Sphere drawing
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphereData.indices, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
-    gl.enableVertexAttribArray(0);
-    gl.enableVertexAttribArray(1);
-    gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
+		// Sphere drawing
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, sphereData.vertices, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphereData.indices, gl.STATIC_DRAW);
+		gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0); 
+		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12); 
+		gl.enableVertexAttribArray(0);
+		gl.enableVertexAttribArray(1);
+		gl.drawElements(gl.TRIANGLES, sphereData.indices.length, gl.UNSIGNED_SHORT, 0);
+	}
 }
 
 // Update dimensions depending on window size
@@ -344,6 +370,7 @@ function resizeCanvasToWindow() {
 
 	draw(currPrimitive);
 }
+window.addEventListener('resize', resizeCanvasToWindow);
 
 //display values on the sliders
 function displaySettings() {
@@ -379,59 +406,59 @@ function changeCamera(param) {
 }
 
 //autoRotate camera on x-axis
-function startAutoRotation() {
-    isAutoRotating = true;
+function startAutoRotationCamera() {
+    isAutoRotatingCamera = true;
 
-    document.getElementById('startAutoRotation').disabled = true; // Disabilita il pulsante Start
-    document.getElementById('stopAutoRotation').disabled = false; // Abilita il pulsante Stop
+    document.getElementById('startAutoRotationCamera').disabled = true; // deactivate start
+    document.getElementById('stopAutoRotationCamera').disabled = false; // activate stop
 
     function rotate() {
-        // Interrompe l'animazione se l'autorotazione è disabilitata
-        if (!isAutoRotating) return;
+        
+        if (!isAutoRotatingCamera) return;
 
-        // Aumenta l'angolo
+        // Angle increase
         cameraAngleX += rotationSpeed;
 
-        // Calcola la nuova posizione della camera
-        const radius = 2; // Distanza dall'origine
+        // Compute new camera position
+        const radius = 2; //distance from origin
         const x = radius * Math.sin(cameraAngleX);
         const z = radius * Math.cos(cameraAngleX);
 
-        // Aggiorna la posizione della camera
+        // update cameraPosition
         cameraPosition = new DOMPoint(x, cameraPosition.y, z);
 
-        // Aggiorna la matrice View
+        // Update View Matrix
         view = createLookAt(cameraPosition, origin);
 
-        // Aggiorna la matrice MVP
+        // Update MVP
         modelViewProjection = projection.multiply(view);
         gl.useProgram(program);
         gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
-        // Aggiorna la matrice normale
+        // Update normal Matrix
         normalMatrix = calculateNormalMatrix(view.toFloat32Array());
         gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
         if (window.innerWidth != canvas.width || window.innerHeight != canvas.height) {
-            // Ridimensiona e ridisegna
+            
             resizeCanvasToWindow();
         } else {
-            // Ridisegna la scena
+            
             draw(currPrimitive);
         }
 
-        // Richiama il prossimo frame
+        // Call next frame
         requestAnimationFrame(rotate);
     }
 
-    rotate(); // Avvia l'animazione
+    rotate(); // Start animation
 }
 
-function stopAutoRotation() {
-    isAutoRotating = false; // Interrompe l'autorotazione
+function stopAutoRotationCamera() {
+    isAutoRotatingCamera = false; // stops autorotation
 
-    document.getElementById('startAutoRotation').disabled = false; // Abilita il pulsante Start
-    document.getElementById('stopAutoRotation').disabled = true; // Disabilita il pulsante Stop
+    document.getElementById('startAutoRotationCamera').disabled = false; 
+    document.getElementById('stopAutoRotationCamera').disabled = true; 
 }
 
 //change light direction values
@@ -550,7 +577,26 @@ function applyLightIntChanges() {
 //generate random parallelepiped (click)
 function RandParallelepiped() {
 
-	currPrimitive="parallelepiped";
+	document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
+    document.getElementById('applyCamera').disabled = false; 
+	document.getElementById('cameraX').disabled = false; 
+    document.getElementById('cameraY').disabled = false; 
+	document.getElementById('cameraZ').disabled = false; 
+	document.getElementById('applyLight').disabled = false; 
+    document.getElementById('lightX').disabled = false;
+	document.getElementById('lightY').disabled = false
+	document.getElementById('lightZ').disabled = false
+	document.getElementById('applyLightIntensity').disabled = false; 
+    document.getElementById('lightIntV').disabled = false;
+
+	currPrimitive="parallelepiped"; //parallelepiped
+
+	displaySettings();
+
+	//Set the currPrimitive in fragmentShader
+	gl.uniform1i(currPrimitiveLoc, 0);
+
+
 
 	// new random dimensions for the cube
     let width_cube = getRandomFloat(0.1, 0.7);
@@ -609,10 +655,28 @@ function RandParallelepiped() {
 
 //generate random pseudosphere
 function RandSphere() {
-    currPrimitive = "sphere";
+
+	document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
+    document.getElementById('applyCamera').disabled = false; 
+	document.getElementById('cameraX').disabled = false; 
+    document.getElementById('cameraY').disabled = false; 
+	document.getElementById('cameraZ').disabled = false; 
+	document.getElementById('applyLight').disabled = false; 
+    document.getElementById('lightX').disabled = false;
+	document.getElementById('lightY').disabled = false
+	document.getElementById('lightZ').disabled = false
+	document.getElementById('applyLightIntensity').disabled = false; 
+    document.getElementById('lightIntV').disabled = false;
+
+    currPrimitive="sphere"; //sphere
+
+	displaySettings();
+
+	//Set the currPrimitive in fragmentShader
+	gl.uniform1i(currPrimitiveLoc, 1);
 
     // Genera un raggio casuale per la sfera
-    sphereRadius = getRandomFloat(0.05, 0.55);
+    sphereRadius = getRandomFloat(0.1, 0.55);
 
     // Calcola la posizione della sfera sopra la base
     spherePositionY = baseCubeHeight / 2 + sphereRadius;
