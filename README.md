@@ -1,4 +1,4 @@
-Shadow Mapping project developed for the course of Interactive Graphics in Engineering in CS (Sapienza) 2023/2024
+# Shadow Mapping project developed for the course of Interactive Graphics in Engineering in CS (Sapienza) 2023/2024
 
 How to use:
 - Download the src code as a .zip file;
