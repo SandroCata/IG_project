@@ -106,8 +106,8 @@ void main()
 	fragColor = color * brightness;
 }`;
 //disable buttons and inputs
-document.getElementById('startAutoRotationCamera').disabled = true; 
-document.getElementById('stopAutoRotationCamera').disabled = true; 
+//document.getElementById('startAutoRotationCamera').disabled = true; 
+//document.getElementById('stopAutoRotationCamera').disabled = true; 
 document.getElementById('applyCamera').disabled = true; 
 document.getElementById('cameraX').disabled = true; 
 document.getElementById('cameraY').disabled = true; 
@@ -215,11 +215,11 @@ let baseVertices = null;
 let sphereData = null;
 
 //camera and light rotation useful variables
-let isAutoRotatingCamera = false;
-let cameraAngleX = 0; // initial angle
+//let isAutoRotatingCamera = false;
+//let cameraAngleX = 0; // initial angle
 
 
-const rotationSpeed = 0.005; // Rotation velocity (radiants per frame)
+//const rotationSpeed = 0.005; // Rotation velocity (radiants per frame)
 
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
@@ -405,6 +405,7 @@ function changeCamera(param) {
 	displaySettings();
 }
 
+/*
 //autoRotate camera on x-axis
 function startAutoRotationCamera() {
     isAutoRotatingCamera = true;
@@ -453,13 +454,16 @@ function startAutoRotationCamera() {
 
     rotate(); // Start animation
 }
+*/
 
+/*
 function stopAutoRotationCamera() {
     isAutoRotatingCamera = false; // stops autorotation
 
     document.getElementById('startAutoRotationCamera').disabled = false; 
     document.getElementById('stopAutoRotationCamera').disabled = true; 
 }
+*/
 
 //change light direction values
 function changeLightDir(param) {
@@ -577,7 +581,7 @@ function applyLightIntChanges() {
 //generate random parallelepiped (click)
 function RandParallelepiped() {
 
-	document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
+	//document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
     document.getElementById('applyCamera').disabled = false; 
 	document.getElementById('cameraX').disabled = false; 
     document.getElementById('cameraY').disabled = false; 
@@ -656,7 +660,7 @@ function RandParallelepiped() {
 //generate random pseudosphere
 function RandSphere() {
 
-	document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
+	//document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
     document.getElementById('applyCamera').disabled = false; 
 	document.getElementById('cameraX').disabled = false; 
     document.getElementById('cameraY').disabled = false; 
