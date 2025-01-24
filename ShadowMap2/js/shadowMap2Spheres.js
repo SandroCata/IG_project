@@ -467,10 +467,10 @@ function RandSpheres() {
   // Genera i dati della sfera e della base
   baseVertices = createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0);
 
-  sphereData1 = createSphere(sphereRadius1, 128, spherePositionX1, spherePositionY1, spherePositionZ1);
-  sphereData2 = createSphere(sphereRadius2, 128, spherePositionX2, spherePositionY2, spherePositionZ2);
-  sphereData3 = createSphere(sphereRadius3, 128, spherePositionX3, spherePositionY3, spherePositionZ3);
-  sphereData4 = createSphere(sphereRadius4, 128, spherePositionX4, spherePositionY4, spherePositionZ4);
+  sphereData1 = createSphere(sphereRadius1, 256, spherePositionX1, spherePositionY1, spherePositionZ1);
+  sphereData2 = createSphere(sphereRadius2, 256, spherePositionX2, spherePositionY2, spherePositionZ2);
+  sphereData3 = createSphere(sphereRadius3, 256, spherePositionX3, spherePositionY3, spherePositionZ3);
+  sphereData4 = createSphere(sphereRadius4, 256, spherePositionX4, spherePositionY4, spherePositionZ4);
 
   SphereVertices1 = sphereData1.vertices;
   SphereVertices2 = sphereData2.vertices;

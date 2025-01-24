@@ -370,4 +370,3 @@ function RandParallelepipeds() {
 		drawParallelepipeds(0);
 	}
 }
-

@@ -20,7 +20,7 @@ gl_Position = lightPovMvp * aPosition;
 `;
 
 //In the fragment shader, rather than output a color, we output the z value of the current pixel
-//fragementShader for generating depth of each fragment
+//fragmentShader for generating depth of each fragment
 //fragDepth: depth(z) of fragment is kept in shadow map
 
 const depthFragmentShader = `#version 300 es
@@ -68,11 +68,11 @@ uniform mediump sampler2DShadow shadowMap;
 
 out vec3 fragColor;
 
-float ambientLight = 0.22;
+float ambientLight = 0.2;
 
 //improvement parametrs
 float biasCube = 0.002;
-float biasSphere = 0.048;
+float biasSphere = 0.04;
 float visibility = 1.0;
 float shadowSpread = 900.0;
 uniform float lightIntensity;
@@ -96,18 +96,17 @@ void main()
 		else 
 			sampledPos = vec3(positionFromLightPov.xy + adjacentPixels[i]/shadowSpread, positionFromLightPov.z - biasSphere);
 		float hitByLight = texture(shadowMap, sampledPos);
-    	visibility *= max(hitByLight, 0.84);
+    	visibility *= max(hitByLight, 0.83);
 	}
 	vec3 normalizedNormal = normalize(vNormal);
 	vec3 normalizedLightDir = normalize(uLightDirection);
 
-	float lightCos = max(dot(normalizedLightDir, normalizedNormal), ambientLight);
-	float brightness = lightCos * visibility * lightIntensity + ambientLight;
-	fragColor = color * brightness;
+	float lightCos = dot(normalizedLightDir, normalizedNormal);
+	float brightness = max(lightCos * visibility * lightIntensity, ambientLight);
+	fragColor = color * max(brightness * visibility, ambientLight);
 }`;
-//disable buttons and inputs
-//document.getElementById('startAutoRotationCamera').disabled = true; 
-//document.getElementById('stopAutoRotationCamera').disabled = true; 
+
+//disable buttons and inputs at the beginning 
 document.getElementById('applyCamera').disabled = true; 
 document.getElementById('cameraX').disabled = true; 
 document.getElementById('cameraY').disabled = true; 
@@ -119,7 +118,7 @@ document.getElementById('lightZ').disabled = true
 document.getElementById('applyLightIntensity').disabled = true; 
 document.getElementById('lightIntV').disabled = true;
 
-//tells which primitive will be rendered and shadowMapped
+//tells which primitive will be rendered and shadow mapped
 let currPrimitive = null; 
 
 //Context creation for WebGL
@@ -138,7 +137,7 @@ let origin = new DOMPoint(0, 0, 0);
 
 // Set Light MVP Matrix (light direction can vary)
 gl.useProgram(program);
-let LightDir = new DOMPoint(-0.5, 2, -2); 				//initially here
+let LightDir = new DOMPoint(-0.5, 2, 2); 													//initially here
 let lightDirectionLoc = gl.getUniformLocation(program,'uLightDirection');
 gl.uniform3fv(lightDirectionLoc, new Float32Array([LightDir.x, LightDir.y, LightDir.z]));
 let lightProj = createOrtho(-1,1,-1,1,0,4);
@@ -149,7 +148,7 @@ let lightPovMvpDepthLocation = gl.getUniformLocation(depthProgram, 'lightPovMvp'
 gl.useProgram(depthProgram);
 gl.uniformMatrix4fv(lightPovMvpDepthLocation, false, lightPovMvp.toFloat32Array());
 
-//var for currPrimitive in fragmentShader
+//var for currPrimitive in fragmentShader (in order to apply the proper bias to z-coordinate)
 let currPrimitiveLoc = gl.getUniformLocation(program,'currPrimitive');
 
 /*
@@ -178,7 +177,7 @@ gl.uniformMatrix4fv(lightPovMvpRenderLocation, false, textureSpaceMvp.toFloat32A
 
 
 // Set Camera MVP Matrix (camera Position can vary)
-let cameraPosition = new DOMPoint(1, 1, 2);   				//initially here
+let cameraPosition = new DOMPoint(1, 1, 2);   												//initially here
 let view = createLookAt(cameraPosition, origin);
 let projection = createPerspective(Math.PI / 3, canvas.width / canvas.height, 0.1, 50);
 let modelViewProjection = projection.multiply(view);
@@ -187,8 +186,8 @@ let modelViewProjection = projection.multiply(view);
 let projectionLoc = gl.getUniformLocation(program, 'modelViewProjection');
 gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
+//Normal matrix
 let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
-
 let normalMatrixLoc = gl.getUniformLocation(program, 'normalMatrix');
 gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
@@ -209,17 +208,8 @@ let maxOffsetZ = null;
 let spherePositionX = null;
 let spherePositionZ = null;
 
-
 let baseVertices = null;
-
 let sphereData = null;
-
-//camera and light rotation useful variables
-//let isAutoRotatingCamera = false;
-//let cameraAngleX = 0; // initial angle
-
-
-//const rotationSpeed = 0.005; // Rotation velocity (radiants per frame)
 
 //Creating vertex buffer
 const vertexBuffer = gl.createBuffer();
@@ -353,7 +343,7 @@ function resizeCanvasToWindow() {
     gl.viewport(0, 0, canvas.width, canvas.height);
 
 
-	//Recompute some camera and light config
+	//Recompute some scene features
 	gl.useProgram(program);
 	projection = createPerspective(Math.PI / 3, canvas.width / canvas.height, 0.1, 50);
 	modelViewProjection = projection.multiply(view);
@@ -365,9 +355,7 @@ function resizeCanvasToWindow() {
 	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
 	console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-	//console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
 	
-
 	draw(currPrimitive);
 }
 window.addEventListener('resize', resizeCanvasToWindow);
@@ -391,79 +379,17 @@ function changeCamera(param) {
 
 	if(id==="cameraX") {
 		cameraPosition.x = parseFloat(param.value);
-		//document.getElementById('valueX').innerText = cameraPosition.x.toFixed(2);
 	}
 	
 	if(id==="cameraY") {
 		cameraPosition.y = parseFloat(param.value);
-		//document.getElementById('valueY').innerText = cameraPosition.y.toFixed(2);
 	}
 	if(id === "cameraZ") {
 		cameraPosition.z = parseFloat(param.value);
-		//document.getElementById('valueZ').innerText = cameraPosition.z.toFixed(2);
+		
 	}
 	displaySettings();
 }
-
-/*
-//autoRotate camera on x-axis
-function startAutoRotationCamera() {
-    isAutoRotatingCamera = true;
-
-    document.getElementById('startAutoRotationCamera').disabled = true; // deactivate start
-    document.getElementById('stopAutoRotationCamera').disabled = false; // activate stop
-
-    function rotate() {
-        
-        if (!isAutoRotatingCamera) return;
-
-        // Angle increase
-        cameraAngleX += rotationSpeed;
-
-        // Compute new camera position
-        const radius = 2; //distance from origin
-        const x = radius * Math.sin(cameraAngleX);
-        const z = radius * Math.cos(cameraAngleX);
-
-        // update cameraPosition
-        cameraPosition = new DOMPoint(x, cameraPosition.y, z);
-
-        // Update View Matrix
-        view = createLookAt(cameraPosition, origin);
-
-        // Update MVP
-        modelViewProjection = projection.multiply(view);
-        gl.useProgram(program);
-        gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
-
-        // Update normal Matrix
-        normalMatrix = calculateNormalMatrix(view.toFloat32Array());
-        gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
-
-        if (window.innerWidth != canvas.width || window.innerHeight != canvas.height) {
-            
-            resizeCanvasToWindow();
-        } else {
-            
-            draw(currPrimitive);
-        }
-
-        // Call next frame
-        requestAnimationFrame(rotate);
-    }
-
-    rotate(); // Start animation
-}
-*/
-
-/*
-function stopAutoRotationCamera() {
-    isAutoRotatingCamera = false; // stops autorotation
-
-    document.getElementById('startAutoRotationCamera').disabled = false; 
-    document.getElementById('stopAutoRotationCamera').disabled = true; 
-}
-*/
 
 //change light direction values
 function changeLightDir(param) {
@@ -472,16 +398,13 @@ function changeLightDir(param) {
 
 	if(id==="lightX") {
 		LightDir.x = parseFloat(param.value);
-		//document.getElementById('valueX').innerText = cameraPosition.x.toFixed(2);
 	}
 	
 	if(id==="lightY") {
 		LightDir.y = parseFloat(param.value);
-		//document.getElementById('valueY').innerText = cameraPosition.y.toFixed(2);
 	}
 	if(id === "lightZ") {
 		LightDir.z = parseFloat(param.value);
-		//document.getElementById('valueZ').innerText = cameraPosition.z.toFixed(2);
 	}
 	displaySettings();
 }
@@ -581,7 +504,7 @@ function applyLightIntChanges() {
 //generate random parallelepiped (click)
 function RandParallelepiped() {
 
-	//document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
+	// Enable buttons and sliders once demo is started
     document.getElementById('applyCamera').disabled = false; 
 	document.getElementById('cameraX').disabled = false; 
     document.getElementById('cameraY').disabled = false; 
@@ -599,7 +522,6 @@ function RandParallelepiped() {
 
 	//Set the currPrimitive in fragmentShader
 	gl.uniform1i(currPrimitiveLoc, 0);
-
 
 
 	// new random dimensions for the cube
@@ -660,7 +582,7 @@ function RandParallelepiped() {
 //generate random pseudosphere
 function RandSphere() {
 
-	//document.getElementById('startAutoRotationCamera').disabled = false; // Enable buttons and sliders once demo is started
+	// Enable buttons and sliders once demo is started
     document.getElementById('applyCamera').disabled = false; 
 	document.getElementById('cameraX').disabled = false; 
     document.getElementById('cameraY').disabled = false; 
@@ -711,4 +633,3 @@ function RandSphere() {
 		draw(currPrimitive);
 	}
 }
-

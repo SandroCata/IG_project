@@ -10,8 +10,6 @@
 	<div id="controls">
 		<button id="RandParallelepiped" onclick="RandParallelepiped()">Show Random Parallelepiped </button>
 		<button id="RandSphere" onclick="RandSphere()">Show Random Sphere </button>
-		<!--<button id="startAutoRotationCamera" onclick="startAutoRotationCamera()">Start Auto Rotation Camera</button>
-		<button id="stopAutoRotationCamera" onclick="stopAutoRotationCamera()">Stop Auto Rotation Camera</button> -->
 		<button id="applyCamera" onclick="applyCameraChanges()" >Manual Camera Settings</button>
 		<label>Camera X: <span id="valueX"></span> <input type="range" id="cameraX" onchange="changeCamera(this)" min="-1" max="1" step="0.1"></label>
 		<label>Camera Y: <span id="valueY"></span> <input type="range" id="cameraY" onchange="changeCamera(this)" min="0.4" max="2" step="0.1"></label>
@@ -19,7 +17,7 @@
 		<button id="applyLight" onclick="applyLightDirChanges()" >Manual Light Direction</button>
 		<label>Light X: <span id="lightvX"></span> <input type="range" id="lightX" onchange="changeLightDir(this)" min="-1" max="1" step="0.1"></label>
 		<label>Light Y: <span id="lightvY"></span> <input type="range" id="lightY" onchange="changeLightDir(this)" min="0.4" max="2" step="0.1"></label>
-		<label>Light Z: <span id="lightvZ"></span> <input type="range" id="lightZ" onchange="changeLightDir(this)" min="-2" max="2" step="0.1"></label>
+		<label>Light Z: <span id="lightvZ"></span> <input type="range" id="lightZ" onchange="changeLightDir(this)" min="1" max="2" step="0.1"></label>
 		<button id="applyLightIntensity" onclick="applyLightIntChanges()" >Manual Light Intensity</button>
 		<label>Light Intensity: <span id="lightInt"></span> <input type="range" id="lightIntV" onchange="changeLightInt(this)"  min="0.2" max="1" step="0.1"></label>
 	</div>
