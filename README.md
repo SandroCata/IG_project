@@ -12,6 +12,6 @@
 ## Static Shadow Map on Spheres
 ![](./pics/staticSphere.png)
 ## Dynamic Shadow Map on Parallelepipeds
-![](./pics/animParall.gif.gif)
+![](./pics/animParall.gif)
 ## Dynamic Shadow Map on Spheres
 ![](./pics/animSpheres.gif)
