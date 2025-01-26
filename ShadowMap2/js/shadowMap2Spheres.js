@@ -26,7 +26,6 @@ layout(location=1) in vec3 aNormal;
 
 uniform mat4 modelViewProjection;
 uniform mat4 lightPovMvp;
-uniform mat4 normalMatrix;
 
 out vec3 vNormal;
 out vec4 positionFromLightPov;
@@ -34,7 +33,6 @@ out vec4 positionFromLightPov;
 void main()
 {
     vNormal = aNormal;
-    //vNormal = normalize((normalMatrix * vec4(aNormal, 0.0)).xyz);
     gl_Position = modelViewProjection * aPosition;
     positionFromLightPov = lightPovMvp * aPosition;
 }`;
@@ -54,6 +52,8 @@ out vec3 fragColor;
 
 float ambientLight = 0.2;
 float biasSphere = 0.02;
+float visibility = 1.0;
+float shadowSpread = 1000.0;
 
 vec2 adjacentPixels[4] = vec2[](
   vec2(-1, 0), 
@@ -63,9 +63,6 @@ vec2 adjacentPixels[4] = vec2[](
 );
 
 vec3 color = vec3(1.0, 1.0, 1.0);
-
-float visibility = 1.0;
-float shadowSpread = 1000.0;
 
 void main()
 {
@@ -77,7 +74,9 @@ void main()
   }
   
   vec3 normalizedNormal = normalize(vNormal);
-  float lightCos = dot(uLightDirection, normalizedNormal);
+  vec3 normalizedLightDir = normalize(uLightDirection);
+
+  float lightCos = dot(normalizedLightDir, normalizedNormal);
   float brightness = max(lightCos * visibility, ambientLight);
   fragColor = color * max(brightness * visibility, ambientLight);
 }`;
@@ -96,7 +95,7 @@ const origin = new DOMPoint(0, 0, 0);
 
 // Setup Light
 gl.useProgram(program);
-let inverseLightDirection = normalize(new DOMPoint(-0.0, 1, -0.5));
+let inverseLightDirection = new DOMPoint(-0.0, 1, -0.5);
 let lightDirectionLoc = gl.getUniformLocation(program,'uLightDirection');
 gl.uniform3fv(lightDirectionLoc, new Float32Array([inverseLightDirection.x, inverseLightDirection.y, inverseLightDirection.z]));
 let lightPovProjection = createOrtho(-1,1,-1,1,0,6);
@@ -130,8 +129,6 @@ const projectionLoc = gl.getUniformLocation(program, 'modelViewProjection');
 gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
 
-//normalMatrix
-
 //avoids cube to be rendered inside and below the base cube
 let baseCubeHeight = 0.01; 
 
@@ -157,7 +154,7 @@ let SphereIndices3= null;
 let SphereIndices4= null;
 
 // Depth Texture
-const depthTextureSize = new DOMPoint(2048, 2048);
+const depthTextureSize = new DOMPoint(4096, 4096);
 const depthTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT32F, depthTextureSize.x, depthTextureSize.y);
@@ -185,29 +182,6 @@ const cameraSpinRate = 0.1;
 let cameraZoom = 1;
 const cameraZoomRate = 0.1;
 
-function cleanUpBuffers() {
-  gl.deleteBuffer(vertexBuffer);
-  gl.deleteBuffer(indexBuffer);
-
-  // Reinizializza i dati delle sfere
-  SphereVertices1 = null;
-  SphereVertices2 = null;
-  SphereVertices3 = null;
-  SphereVertices4 = null;
-  
-  SphereIndices1 = null;
-  SphereIndices2 = null;
-  SphereIndices3 = null;
-  SphereIndices4 = null;
-  
-  vertexBuffer = gl.createBuffer();
-  indexBuffer = gl.createBuffer();
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
-  gl.clear(gl.DEPTH_BUFFER_BIT);
-  
-}
-
 function clamp(num, min, max) {
   return Math.min(Math.max(num, min), max);
 }
@@ -226,16 +200,13 @@ function drawSpheres(time) {
     inverseLightDirection.y = Math.abs(Math.sin(lightRotationAngles.y) * 2);
     inverseLightDirection.z = (Math.sin(lightRotationAngles.z) * 1);
 
-    const normalizedDirection = normalize(inverseLightDirection)
     gl.useProgram(program)
-    gl.uniform3fv(lightDirectionLoc, new Float32Array([normalizedDirection.x, normalizedDirection.y, normalizedDirection.z]));
+    gl.uniform3fv(lightDirectionLoc, new Float32Array([inverseLightDirection.x, inverseLightDirection.y, inverseLightDirection.z]));
 
     const lightPovView = createLookAt(inverseLightDirection, origin);
     const lightPovMvp = lightPovProjection.multiply(lightPovView);
     gl.useProgram(depthProgram)
     gl.uniformMatrix4fv(lightPovMvpDepthLocation, false, lightPovMvp.toFloat32Array());
-
-    //gl.disable(gl.CULL_FACE);
 
     // Render shadow map to depth texture
     gl.useProgram(depthProgram);
@@ -405,10 +376,7 @@ function resizeCanvasToWindow() {
   gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
   console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-  //console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
 
-
-  drawSpheres(0);
 }
 window.addEventListener('resize', resizeCanvasToWindow);
 
@@ -485,6 +453,7 @@ function RandSpheres() {
 	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
 		//Resize and redraw
 		resizeCanvasToWindow();
+    drawSpheres(0);
 	}
 	else {
 		//Redraw the scene

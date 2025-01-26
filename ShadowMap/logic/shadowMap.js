@@ -1,9 +1,8 @@
 //sampler2DShadow smooths out the rendered pixels in-between the shadowed and lit areas.
-//(while WebGL won’t attempt to smooth out the scaled pixels of your shadow map)
 
 //Light POV
 
-//vertexShader for shadow map generation
+//depthVertexShader for shadow map generation
 //aPosition: positions of vertices
 //lightPovMvp: ModelViewProj matrix for light POV
 //gl_Position: vertex converted in clipped space of light
@@ -19,7 +18,7 @@ gl_Position = lightPovMvp * aPosition;
 }
 `;
 
-//In the fragment shader, rather than output a color, we output the z value of the current pixel
+//In the depth fragment shader, rather than output a color, we output the z value of the current pixel
 //fragmentShader for generating depth of each fragment
 //fragDepth: depth(z) of fragment is kept in shadow map
 
@@ -41,7 +40,6 @@ layout(location=1) in vec3 aNormal;
 
 uniform mat4 modelViewProjection;
 uniform mat4 lightPovMvp;
-uniform mat4 normalMatrix;
 
 out vec3 vNormal;
 out vec4 positionFromLightPov;
@@ -49,8 +47,7 @@ out vec4 positionFromLightPov;
 
 void main()
 {
-	//vNormal = aNormal;
-	vNormal = normalize((normalMatrix * vec4(aNormal, 0.0)).xyz);
+	vNormal = aNormal;
 	gl_Position = modelViewProjection * aPosition;
 	positionFromLightPov = lightPovMvp * aPosition;
 }`;
@@ -69,12 +66,10 @@ uniform mediump sampler2DShadow shadowMap;
 out vec3 fragColor;
 
 float ambientLight = 0.2;
-
-//improvement parametrs
 float biasCube = 0.002;
-float biasSphere = 0.04;
+float biasSphere = 0.02;
 float visibility = 1.0;
-float shadowSpread = 900.0;
+float shadowSpread = 1000.0;
 uniform float lightIntensity;
 
 //sampling the four adjacent pixels
@@ -140,7 +135,7 @@ gl.useProgram(program);
 let LightDir = new DOMPoint(-0.5, 2, 2); 													//initially here
 let lightDirectionLoc = gl.getUniformLocation(program,'uLightDirection');
 gl.uniform3fv(lightDirectionLoc, new Float32Array([LightDir.x, LightDir.y, LightDir.z]));
-let lightProj = createOrtho(-1,1,-1,1,0,4);
+let lightProj = createOrtho(-1,1,-1,1,0,6);
 let lightPovView = createLookAt(LightDir, origin);
 let lightPovMvp = lightProj.multiply(lightPovView);
 
@@ -179,17 +174,12 @@ gl.uniformMatrix4fv(lightPovMvpRenderLocation, false, textureSpaceMvp.toFloat32A
 // Set Camera MVP Matrix (camera Position can vary)
 let cameraPosition = new DOMPoint(1, 1, 2);   												//initially here
 let view = createLookAt(cameraPosition, origin);
-let projection = createPerspective(Math.PI / 3, canvas.width / canvas.height, 0.1, 50);
+let projection = createPerspective(Math.PI / 3, canvas.width / canvas.height, 0.1, 10);
 let modelViewProjection = projection.multiply(view);
 
 //Passing MVP to the program shader
 let projectionLoc = gl.getUniformLocation(program, 'modelViewProjection');
 gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
-
-//Normal matrix
-let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
-let normalMatrixLoc = gl.getUniformLocation(program, 'normalMatrix');
-gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
 
 //avoids cube to be rendered inside and below the base cube
 let baseCubeHeight = 0.01; 
@@ -350,10 +340,6 @@ function resizeCanvasToWindow() {
 
 	gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
-	normalMatrix = calculateNormalMatrix(view.toFloat32Array());
-
-	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
-
 	console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
 	
 	draw(currPrimitive);
@@ -419,12 +405,6 @@ function changeLightInt(param) {
 function applyCameraChanges() {
 	view = createLookAt(cameraPosition, origin);
 	modelViewProjection = projection.multiply(view);
-
-	let normalMatrix = calculateNormalMatrix(view.toFloat32Array());
-
-	
-	gl.uniformMatrix4fv(normalMatrixLoc, false, new Float32Array(normalMatrix));
-
 	gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
 
@@ -470,7 +450,6 @@ function applyLightDirChanges() {
 	//draw updated scene
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-	//gl.uniform1f(lightIntensityLoc, lightIntensity);  // Aggiorna l'uniform nello shader
 
 	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
 		//Resize and redraw

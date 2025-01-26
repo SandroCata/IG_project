@@ -51,6 +51,9 @@ uniform mediump sampler2DShadow shadowMap;
 out vec3 fragColor;
 
 float ambientLight = 0.2;
+//float biasCube = 0.002;
+float visibility = 1.0;
+float shadowSpread = 1000.0;
 
 vec2 adjacentPixels[4] = vec2[](
   vec2(-1, 0), 
@@ -60,11 +63,6 @@ vec2 adjacentPixels[4] = vec2[](
 );
 
 vec3 color = vec3(1.0, 1.0, 1.0);
-
-//float biasCube = 0.002;
-
-float visibility = 1.0;
-float shadowSpread = 1100.0;
 
 void main()
 {
@@ -76,7 +74,9 @@ void main()
   }
   
   vec3 normalizedNormal = normalize(vNormal);
-  float lightCos = dot(uLightDirection, normalizedNormal);
+  vec3 normalizedLightDir = normalize(uLightDirection);
+
+	float lightCos = dot(normalizedLightDir, normalizedNormal);
   float brightness = max(lightCos * visibility, ambientLight);
   fragColor = color * max(brightness * visibility, ambientLight);
 }`;
@@ -95,7 +95,7 @@ const origin = new DOMPoint(0, 0, 0);
 
 // Setup Light
 gl.useProgram(program);
-const inverseLightDirection = normalize(new DOMPoint(-0.0, 1, -0.5));
+let inverseLightDirection = new DOMPoint(-0.0, 1, -0.5);
 const lightDirectionLoc = gl.getUniformLocation(program,'uLightDirection');
 gl.uniform3fv(lightDirectionLoc, new Float32Array([inverseLightDirection.x, inverseLightDirection.y, inverseLightDirection.z]));
 const lightPovProjection = createOrtho(-1,1,-1,1,0,6);
@@ -129,8 +129,6 @@ const projectionLoc = gl.getUniformLocation(program, 'modelViewProjection');
 gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
 
-//normalMatrix not used
-
 //avoids cube to be rendered inside and below the base cube
 let baseCubeHeight = 0.01; 
 
@@ -144,7 +142,7 @@ let cubes = null;
 const vertexBuffer = gl.createBuffer();
 
 // Depth Texture
-const depthTextureSize = new DOMPoint(1024, 1024);
+const depthTextureSize = new DOMPoint(2048, 2048);
 const depthTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT32F, depthTextureSize.x, depthTextureSize.y);
@@ -159,7 +157,7 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
 
 // Get access to the shadow map uniform so we can set it during draw
-const shadowMapLocation = gl.getUniformLocation(program, 'shadowMap');
+let shadowMapLocation = gl.getUniformLocation(program, 'shadowMap');
 
 let previousTime = 0;
 
@@ -171,6 +169,10 @@ const cameraRotationAngles = new DOMPoint();
 const cameraSpinRate = 0.1;
 let cameraZoom = 1;
 const cameraZoomRate = 0.1;
+
+function clamp(num, min, max) {
+  return Math.min(Math.max(num, min), max);
+}
 
 function drawParallelepipeds(time) {
   const interval = (time - previousTime) / 1000;
@@ -184,9 +186,8 @@ function drawParallelepipeds(time) {
   inverseLightDirection.y = Math.abs(Math.sin(lightRotationAngles.y) * 2);
   inverseLightDirection.z = (Math.sin(lightRotationAngles.z) * 1);
 
-  const normalizedDirection = normalize(inverseLightDirection)
   gl.useProgram(program)
-  gl.uniform3fv(lightDirectionLoc, new Float32Array([normalizedDirection.x, normalizedDirection.y, normalizedDirection.z]));
+  gl.uniform3fv(lightDirectionLoc, new Float32Array([inverseLightDirection.x, inverseLightDirection.y, inverseLightDirection.z]));
 
   const lightPovView = createLookAt(inverseLightDirection, origin);
   const lightPovMvp = lightPovProjection.multiply(lightPovView);
@@ -235,11 +236,6 @@ function drawParallelepipeds(time) {
   requestAnimationFrame(drawParallelepipeds);
 }
 
-
-function clamp(num, min, max) {
-  return Math.min(Math.max(num, min), max);
-}
-
 // Update dimensions depending on window size
 function resizeCanvasToWindow() {
   // Get pixel ratio
@@ -265,10 +261,6 @@ function resizeCanvasToWindow() {
   gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
   console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-  //console.log(`Viewport size: ${gl.getParameter(gl.VIEWPORT)}`);
-
-
-  drawParallelepipeds(0);
 }
 window.addEventListener('resize', resizeCanvasToWindow);
 
@@ -364,6 +356,7 @@ function RandParallelepipeds() {
 	if(window.innerWidth != canvas.width || window.innerHeight != canvas.height ) {
 		//Resize and redraw
 		resizeCanvasToWindow();
+    drawParallelepipeds(0);
 	}
 	else {
 		//Redraw the scene
