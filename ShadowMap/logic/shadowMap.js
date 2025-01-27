@@ -134,7 +134,7 @@ void main()
 	//C = I * cos(theta) * Kd
 	float lightCos = dot(normalizedLightDir, normalizedNormal);
 	float brightness = max(lightCos * visibility * lightIntensity, ambientLight);
-	fragColor = color * max(brightness, ambientLight);
+	fragColor = color * brightness;
 }`;
 
 //disable buttons and inputs at the beginning 
@@ -217,7 +217,7 @@ let projectionLoc = gl.getUniformLocation(program, 'modelViewProjection');
 gl.uniformMatrix4fv(projectionLoc, false, modelViewProjection.toFloat32Array());
 
 //avoids cube to be rendered inside and below the base cube
-let baseCubeHeight = 0.01; 
+let baseCubeHeight = 0.001; 
 
 //initialization of all cubes and sphere useful variables
 let vertices = 36;
