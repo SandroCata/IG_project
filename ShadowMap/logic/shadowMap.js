@@ -1,5 +1,3 @@
-//sampler2DShadow smooths out the rendered pixels in-between the shadowed and lit areas.
-
 //Light POV
 
 //depthVertexShader for shadow map generation
@@ -14,7 +12,7 @@ layout(location=0) in vec4 aPosition;
 uniform mat4 lightPovMvp;
 
 void main(){
-gl_Position = lightPovMvp * aPosition;
+	gl_Position = lightPovMvp * aPosition;
 }
 `;
 
@@ -28,7 +26,7 @@ precision mediump float;
 out float fragDepth;
 
 void main(){
-fragDepth = gl_FragCoord.z;
+	fragDepth = gl_FragCoord.z;
 }
 `;
 
@@ -57,20 +55,28 @@ precision mediump float;
 
 uniform vec3 uLightDirection;
 uniform int currPrimitive;
+uniform float lightIntensity;
 
 in vec3 vNormal;
 in vec4 positionFromLightPov;
 
+//sampler2DShadow smooths out the rendered pixels in-between the shadowed and lit areas.
 uniform mediump sampler2DShadow shadowMap;
 
 out vec3 fragColor;
 
+//ambientLight ensures that there is minimal lighting even in the absence of direct light.
 float ambientLight = 0.2;
+
+//biasing to solve self shadowing and artifacts
 float biasCube = 0.002;
 float biasSphere = 0.02;
+
+//correction factor for shadow (plays as the Kd factor in the Lambertian Formula)
 float visibility = 1.0;
+
+//scaling factor to interpolate between adjacent pixels.
 float shadowSpread = 1000.0;
-uniform float lightIntensity;
 
 //sampling the four adjacent pixels
 vec2 adjacentPixels[4] = vec2[](
@@ -82,6 +88,34 @@ vec2 adjacentPixels[4] = vec2[](
 
 vec3 color = vec3(1.0, 1.0, 1.0);
 
+/*
+NOTE 1 ->
+
+texture(shadowMap, sampledPos) function:
+
+    - Compares sampledPos.z with the depth stored in the shadow map at (x, y).
+    - Returns:
+        1.0 if the fragment is visible by light (not in shadow).
+        0.0 (or an interpolated value) if the fragment is in shadow.
+
+*/
+
+/*
+NOTE 2 ->
+
+Anti-aliasing (PCF):
+
+- Technique used in shadow mapping to soften shadows and reduce artifacts, 
+  making them more realistic. 
+  It works by interpolating the depth values of the shadow map around a pixel.
+
+- It attenuates the artifacts by applying soft filtering around the edges of the shadows.
+ 
+- The sampler2DShadow function performs a bilinear-filtering operation, 
+  sampling multiple neighboring pixels (based on offsets in adjacentPixels) 
+  and interpolating the results.
+
+*/
 void main()
 {
 	for (int i = 0; i < 4; i++) {
@@ -96,9 +130,11 @@ void main()
 	vec3 normalizedNormal = normalize(vNormal);
 	vec3 normalizedLightDir = normalize(uLightDirection);
 
+	//Lambertian model with ambient light, correction of shadow with visibility factor
+	//C = I * cos(theta) * Kd
 	float lightCos = dot(normalizedLightDir, normalizedNormal);
 	float brightness = max(lightCos * visibility * lightIntensity, ambientLight);
-	fragColor = color * max(brightness * visibility, ambientLight);
+	fragColor = color * max(brightness, ambientLight);
 }`;
 
 //disable buttons and inputs at the beginning 
@@ -120,7 +156,7 @@ let currPrimitive = null;
 const canvas = document.querySelector('canvas');
 const gl = canvas.getContext('webgl2');
 
-//Compiling and executing the shader program
+//Compiling and executing the shader program both for Light POV and Camera POV
 const program = createProgram(gl, vertexShaderSrc, fragmentShaderSrc);
 const depthProgram = createProgram(gl, depthVertexShader, depthFragmentShader);
 
@@ -143,21 +179,20 @@ let lightPovMvpDepthLocation = gl.getUniformLocation(depthProgram, 'lightPovMvp'
 gl.useProgram(depthProgram);
 gl.uniformMatrix4fv(lightPovMvpDepthLocation, false, lightPovMvp.toFloat32Array());
 
-//var for currPrimitive in fragmentShader (in order to apply the proper bias to z-coordinate)
+//currPrimitive in fragmentShader (in order to apply the proper bias to z-coordinate)
 let currPrimitiveLoc = gl.getUniformLocation(program,'currPrimitive');
 
 /*
 The following code substitutes 'vec3 lightPovPositionInTexture = positionFromLightPov.xyz * 0.5 + 0.5;' in fragmentShader;
-instead of doing convertion for each pixel we do it for each draw call
-All the vertices are already multiplied by the light pov matrix to get their position from the light. So you multiply that matrix by a matrix that scales 0.5 and translates 0.5 before using it, same effect.
-translation on last row and scale on the diagonal
+Instead of doing convertion for each pixel we do it for each draw call
+All the vertices are already multiplied by the light pov matrix to get their position from the light. 
+So you multiply that matrix by a matrix that scales 0.5 and translates 0.5 before using it.
+Translation on last row and scale on the diagonal.
 This combination of matrices is what allows the shadow map to work correctly:
 
     - lightPovMvp: it transforms the coordinates of the scene from the point of view of the light.
 
     - textureSpaceConversion: it converts these coordinates into a normalized space [0,1][0,1], which is necessary to index the shadow map correctly.
-
-The following part of the code translates the position of a fragment on the screen into the shadow map space to determine whether it is shadowed or illuminated 
 */
 const textureSpaceConversion = new DOMMatrix([
 	0.5, 0.0, 0.0, 0.0,
@@ -209,12 +244,12 @@ const indexBuffer = gl.createBuffer();
 const depthTextureSize = new DOMPoint(4096, 4096);
 const depthTexture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, depthTexture);
-gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT32F, depthTextureSize.x, depthTextureSize.y);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT32F, depthTextureSize.x, depthTextureSize.y); //it allocates space for depth texture
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); //if I put linear, warning appears
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); //same
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); //mode of comparison for texture
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); //clamping on s axis
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); //clamping on t axis
 
 const depthFramebuffer = gl.createFramebuffer();
 gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
@@ -236,6 +271,7 @@ function draw(primitive) {
 }
 
 function drawCubes() {
+	//total cleaning of color and depth buffers
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	// Shadow map drawing from Light POV----------------------------------
@@ -580,23 +616,24 @@ function RandSphere() {
 	//Set the currPrimitive in fragmentShader
 	gl.uniform1i(currPrimitiveLoc, 1);
 
-    // Genera un raggio casuale per la sfera
+    //random radius for the new sphere
     sphereRadius = getRandomFloat(0.1, 0.55);
 
-    // Calcola la posizione della sfera sopra la base
+    // Support position for the sphere on the base Cube
     spherePositionY = baseCubeHeight / 2 + sphereRadius;
 
-    // Limita il movimento della sfera lungo X e Z per rimanere sopra la base
+    // Restricts the sphere's movement along X and Z to stay above the base
     maxOffsetX = 1 - sphereRadius * 2;
     maxOffsetZ = 1 - sphereRadius * 2;
 
+	//Random x and z position for the sphere
     spherePositionX = getRandomFloat(-maxOffsetX / 2, maxOffsetX / 2);
     spherePositionZ = getRandomFloat(-maxOffsetZ / 2, maxOffsetZ / 2);
 
-    // Genera i dati della base
+    // Base generation
     baseVertices = createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0);
 
-    // Genera i dati della sfera
+    // Sphere Generation
     sphereData = createSphere(sphereRadius, 256, spherePositionX, spherePositionY, spherePositionZ);
 
     console.log("-----------------------NEW SPHERE-------------------------------");

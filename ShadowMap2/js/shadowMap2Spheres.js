@@ -78,7 +78,7 @@ void main()
 
   float lightCos = dot(normalizedLightDir, normalizedNormal);
   float brightness = max(lightCos * visibility, ambientLight);
-  fragColor = color * max(brightness * visibility, ambientLight);
+  fragColor = color * max(brightness, ambientLight);
 }`;
 
 const canvas = document.querySelector('canvas');
