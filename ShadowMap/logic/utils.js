@@ -91,49 +91,6 @@ function createPerspective(fov, aspect, near, far) {
       -dotVectors(xAxis, position), -dotVectors(yAxis, position), -dotVectors(invertedZ, position), 1,
     ]);
 }
-
-function calculateNormalMatrix(modelViewMatrix) {
-  // Converti la matrice 4x4 in un array leggibile
-  const m = modelViewMatrix;
-
-  // Calcola la matrice 3x3 inversa dal modello-vista
-  const inv = [
-      m[5] * m[10] - m[6] * m[9],  // inv(0,0)
-      m[2] * m[9] - m[1] * m[10], // inv(0,1)
-      m[1] * m[6] - m[2] * m[5],  // inv(0,2)
-
-      m[6] * m[8] - m[4] * m[10], // inv(1,0)
-      m[0] * m[10] - m[2] * m[8], // inv(1,1)
-      m[2] * m[4] - m[0] * m[6],  // inv(1,2)
-
-      m[4] * m[9] - m[5] * m[8],  // inv(2,0)
-      m[1] * m[8] - m[0] * m[9],  // inv(2,1)
-      m[0] * m[5] - m[1] * m[4]   // inv(2,2)
-  ];
-
-  // Calcola il determinante della matrice 3x3
-  const det = m[0] * inv[0] + m[1] * inv[3] + m[2] * inv[6];
-
-  if (Math.abs(det) < 1e-6) {
-      console.error("Non-invertible matrix");
-      return null;
-  }
-
-  // Scala l'inversa con il reciproco del determinante
-  for (let i = 0; i < 9; i++) {
-      inv[i] /= det;
-  }
-
-  // Trasponi la matrice per ottenere la matrice normale
-  const normalMatrix4x4 = [
-      inv[0], inv[3], inv[6], 0,
-      inv[1], inv[4], inv[7], 0,
-      inv[2], inv[5], inv[8], 0,
-      0,      0,      0,      1
-  ];
-
-  return normalMatrix4x4;
-}
   
 // multi colored cube at a given size and position with normals for light
  function createCubeWithNormals(width, height, depth, x, y, z) {
@@ -219,7 +176,6 @@ function createSphere(radius, segments, positionX, positionY, positionZ) {
 
   return { vertices: new Float32Array(vertices), indices: new Uint16Array(indices) };
 }
-
 
 //randFloat helper
 function getRandomFloat(min, max) {

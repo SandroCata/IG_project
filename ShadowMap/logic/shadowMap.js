@@ -539,8 +539,8 @@ function RandParallelepiped() {
 	gl.uniform1i(currPrimitiveLoc, 0);
 
 
-	// new random dimensions for the cube
-    let width_cube = getRandomFloat(0.1, 0.7);
+	// new random dimensions for the parallelepiped
+    let width_cube = getRandomFloat(0.1, 0.55);
     let height_cube = getRandomFloat(0.2, 0.5);
     let depth_cube = getRandomFloat(0.1, 0.4);
 
@@ -553,21 +553,21 @@ function RandParallelepiped() {
 	//avoids cube to be rendered inside and below the base cube 
 	let upperCubeYPosition = baseCubeHeight + height_cube;
 
-	let maxOffsetX = (1 - width_cube) / 2; // Limita il movimento lungo l'asse X
-	let maxOffsetZ = (1 - depth_cube) / 2; // Limita il movimento lungo l'asse Z
+	let maxOffsetX = (1 - width_cube) / 2; // Restricts movement along x axis
+	let maxOffsetZ = (1 - depth_cube) / 2; // Restricts movement along z axis
 
 	let cubePositionX = getRandomFloat(-maxOffsetX, maxOffsetX);
 	let cubePositionZ = getRandomFloat(-maxOffsetZ, maxOffsetZ);
 
 
-    // new vertices for the cube
+    // new vertices for the parallelepiped
 	vertices = 36;
     cubes = new Float32Array([
         ...createCubeWithNormals(1, baseCubeHeight, 1, 0, 0, 0), // base plan
-        ...createCubeWithNormals(width_cube, height_cube, depth_cube, cubePositionX, upperCubeYPosition, cubePositionZ) // new cube
+        ...createCubeWithNormals(width_cube, height_cube, depth_cube, cubePositionX, upperCubeYPosition, cubePositionZ) // new parallelepiped
     ]);
 
-    // Updating the buffer with the new cube
+    // Updating the buffer with the new parallelepiped
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, cubes, gl.STATIC_DRAW);
 
